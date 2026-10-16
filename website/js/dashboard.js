@@ -70,14 +70,15 @@ function renderTransactions(highlightNewest) {
   $('#tx-list').innerHTML = rows.map((tx, i) => {
     const amountClass = tx.status === 'blocked' ? 'blocked' : tx.amount > 0 ? 'in' : '';
     const sign = tx.amount > 0 ? '+' : '−';
-    let chip = '';
+    // Only Verified and Blocked get color; everything else is a quiet gray line.
+    let status = '';
     if (tx.status === 'approved') {
-      chip = tx.verified ? '<span class="chip chip-green">✓ Verified with SwampTag</span>'
-        : tx.trusted ? '<span class="chip chip-blue">Trusted · no tap needed</span>'
-        : '<span class="chip chip-amber">No SwampTag check</span>';
-    } else if (tx.status === 'blocked') chip = '<span class="chip chip-red">✕ Blocked</span>';
-    else if (tx.status === 'received') chip = '<span class="chip chip-blue">Received</span>';
-    else if (tx.status === 'pending') chip = '<span class="chip chip-amber">Requested</span>';
+      status = tx.verified ? '<div class="tx-status verified">✓ Verified with SwampTag</div>'
+        : tx.trusted ? '<div class="tx-status">Trusted · no tap needed</div>'
+        : '<div class="tx-status">No SwampTag check</div>';
+    } else if (tx.status === 'blocked') status = '<div class="tx-status blocked">✕ Blocked</div>';
+    else if (tx.status === 'received') status = '<div class="tx-status">Received</div>';
+    else if (tx.status === 'pending') status = '<div class="tx-status">Requested</div>';
     return `
       <li class="tx${highlightNewest && i === 0 ? ' new' : ''}">
         <div class="avatar">${escapeHtml(tx.initials)}</div>
@@ -87,10 +88,10 @@ function renderTransactions(highlightNewest) {
         </div>
         <div class="tx-right">
           <div class="tx-amount ${amountClass}">${sign}${money.format(Math.abs(tx.amount))}</div>
-          ${chip}
+          ${status}
         </div>
       </li>`;
-  }).join('') || '<li class="muted">No activity yet.</li>';
+  }).join('') || '<li class="empty">No activity yet. Pay in store or send money to get started.</li>';
 }
 
 function renderBills() {
@@ -99,11 +100,11 @@ function renderBills() {
       <div class="avatar">${escapeHtml(initialsOf(b.payee))}</div>
       <div class="grow">
         <strong>${escapeHtml(b.payee)}</strong>
-        <span class="muted" style="font-size:0.84rem">${escapeHtml(b.nickname || 'Bill')} · due ${formatDate(b.due, true)}</span>
+        <span class="muted small">${escapeHtml(b.nickname || 'Bill')} · due ${formatDate(b.due, true)}</span>
       </div>
       <span class="bill-amount">${money.format(b.amount)}</span>
       <button class="btn btn-outline btn-sm" data-bill="${escapeHtml(b.id)}">Pay</button>
-    </div>`).join('') || '<p class="muted">You\'re all paid up.</p>';
+    </div>`).join('') || '<p class="empty">You\'re all paid up.</p>';
   $('#bill-list').querySelectorAll('[data-bill]').forEach((btn) => {
     btn.addEventListener('click', () => payBillFlow(snap.bills.find((b) => b.id === btn.dataset.bill)));
   });
@@ -134,7 +135,7 @@ function renderShield() {
 
 function renderSource() {
   const pill = $('#source-pill');
-  pill.classList.toggle('live', Bank.live);
+  pill.className = `badge badge-dot ${Bank.live ? 'badge-live' : 'badge-offline'}`;
   pill.textContent = Bank.live ? 'Live · Capital One Nessie' : 'Offline demo data';
   pill.title = Bank.live ? 'Balance, purchases, transfers and bills come from the Nessie API' : Bank.offlineReason;
   $('#source-text').textContent = Bank.live ? 'Nessie API (live)' : `Offline: ${Bank.offlineReason}`;
@@ -160,9 +161,9 @@ function renderKeyPanel() {
 
   const hasKey = Boolean(state.keyUid);
   $('#key-uid').textContent = hasKey ? state.keyUid : 'None';
-  $('#key-tile-uid').textContent = hasKey ? '...' + state.keyUid.slice(-4) : '';
-  $('#key-tile-status').textContent = hasKey ? 'Protected' : 'Not linked';
-  $('#key-tile-caption').textContent = hasKey ? 'Card ...4821 needs your tap' : 'Card ...4821 is unprotected';
+  $('#key-strip-dot').className = `status-dot ${hasKey ? 'on' : 'off'}`;
+  $('#key-tile-status').textContent = hasKey ? `SwampTag key ...${state.keyUid.slice(-4)} linked` : 'No key linked';
+  $('#key-tile-caption').textContent = hasKey ? 'Risky payments from card ...4821 need your tap' : 'Card ...4821 is unprotected';
   $('#register-btn').textContent = hasKey ? 'Replace key' : 'Link a key';
   $('#unlink-btn').classList.toggle('hidden', !hasKey);
   $('#last-tap').textContent = lastTap ? `${lastTap.uid} · ${formatDate(lastTap.date)}` : '—';
@@ -239,13 +240,35 @@ function simulateTap(correct) {
   onTag(correct ? (state.keyUid || DEMO_GOOD_UID) : DEMO_BAD_UID);
 }
 
+// In-page replacement for window.confirm(). Resolves true when the user confirms.
+function confirmModal(title, text, confirmLabel, { danger = false } = {}) {
+  return new Promise((resolve) => {
+    const modal = openModal(`
+      ${modalHead(escapeHtml(title))}
+      <p class="modal-text">${escapeHtml(text)}</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-answer="no">Keep it</button>
+        <button class="btn ${danger ? 'btn-danger' : 'btn-navy'}" data-answer="yes">${escapeHtml(confirmLabel)}</button>
+      </div>`);
+    let answered = false;
+    const answer = (value) => {
+      if (answered) return;
+      answered = true;
+      closeModal();
+      resolve(value);
+    };
+    modal.querySelectorAll('[data-answer]').forEach((b) => b.addEventListener('click', () => answer(b.dataset.answer === 'yes')));
+    modal.querySelector('[data-close]').addEventListener('click', () => answer(false));
+  });
+}
+
 function showResult(kind, title, body, extraHtml = '') {
   const icon = { good: '✓', bad: '✕', busy: '…' }[kind];
   return openModal(`
     <div class="approval">
       <div class="result-icon ${kind}">${icon}</div>
       <div class="result-title ${kind}">${title}</div>
-      <p class="muted" style="margin:10px 0 22px">${escapeHtml(body)}</p>
+      <p class="result-body">${escapeHtml(body)}</p>
       ${extraHtml}
       ${kind === 'busy' ? '' : '<button class="btn btn-navy btn-block" data-close>Done</button>'}
     </div>`, { locked: kind === 'busy' });
@@ -338,13 +361,13 @@ function requestApproval(payment, risk) {
       <div class="approval-amount">${money.format(payment.amount)}</div>
       <div class="risk-box">
         <span class="risk-label">Why we're asking · ${risk.level} risk</span>
-        ${reasons.map((r) => `<span class="chip ${risk.level === 'high' ? 'chip-red' : 'chip-amber'}">${escapeHtml(r)}</span>`).join('')}
+        ${reasons.map((r) => `<span class="badge ${risk.level === 'high' ? 'badge-red' : 'badge-amber'}">${escapeHtml(r)}</span>`).join('')}
       </div>
       ${TAP_ICON}
       <div class="approval-prompt">Tap your SwampTag key to approve</div>
       <div class="countdown"><div id="cd-bar"></div></div>
-      <div class="muted" style="font-size:0.85rem" id="cd-text">Expires in ${APPROVAL_SECONDS}s</div>
-      <button class="btn btn-ghost btn-sm" id="cancel-approval" style="margin-top:10px">Cancel</button>
+      <div class="countdown-text" id="cd-text">Expires in ${APPROVAL_SECONDS}s</div>
+      <div class="cancel-row"><button class="btn btn-ghost btn-sm" id="cancel-approval">Cancel</button></div>
       ${demoButtonsHtml()}
     </div>`, { locked: true });
 
@@ -354,7 +377,7 @@ function requestApproval(payment, risk) {
   let remaining = APPROVAL_SECONDS;
   const timer = setInterval(() => {
     remaining -= 1;
-    $('#cd-bar').style.width = (remaining / APPROVAL_SECONDS) * 100 + '%';
+    $('#cd-bar').style.transform = `scaleX(${remaining / APPROVAL_SECONDS})`;
     $('#cd-text').textContent = `Expires in ${remaining}s`;
     if (remaining <= 0) {
       if (payment.fraud) finish('blocked', 'No SwampTag key was tapped');
@@ -403,7 +426,7 @@ async function payWithoutKey(payment) {
     renderShield();
     const modal = showResult('bad', 'The thief got through',
       `A copied card and a stolen PIN were enough to take ${money.format(payment.amount)}. Link a SwampTag key to stop this.`,
-      '<button class="btn btn-primary btn-block" id="link-now" style="margin-bottom:10px">Link a key now</button>');
+      '<button class="btn btn-primary btn-block stack-gap" id="link-now">Link a key now</button>');
     modal.querySelector('#link-now').addEventListener('click', registerFlow);
   } else {
     closeModal();
@@ -415,7 +438,7 @@ async function payWithoutKey(payment) {
 
 function contactPicker() {
   return `<div class="contact-picker">${snap.contacts.map((c, i) => `
-    <button type="button" class="contact-option${i === 0 ? ' selected' : ''}" data-i="${i}">
+    <button type="button" class="contact-option" aria-pressed="${i === 0}" data-i="${i}">
       <span class="avatar">${escapeHtml(c.initials)}</span>${escapeHtml(c.name.split(' ')[0])}
     </button>`).join('')}</div>`;
 }
@@ -424,8 +447,8 @@ function wireContactPicker(modal) {
   let selected = 0;
   modal.querySelectorAll('.contact-option').forEach((b) => {
     b.addEventListener('click', () => {
-      modal.querySelectorAll('.contact-option').forEach((x) => x.classList.remove('selected'));
-      b.classList.add('selected');
+      modal.querySelectorAll('.contact-option').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true');
       selected = Number(b.dataset.i);
     });
   });
@@ -443,7 +466,7 @@ function sendFlow() {
     ${contactPicker()}
     <form id="send-form">
       <input class="input amount-input" id="send-amount" inputmode="numeric" value="$25" aria-label="Amount in whole dollars">
-      <div class="field" style="margin-top:12px">
+      <div class="field field-gap">
         <input class="input" id="send-note" placeholder="What's it for?" maxlength="40" value="Lunch">
       </div>
       <button class="btn btn-primary btn-block" type="submit">Continue</button>
@@ -466,7 +489,7 @@ function requestFlow() {
     ${contactPicker()}
     <form id="req-form">
       <input class="input amount-input" id="req-amount" inputmode="numeric" value="$15" aria-label="Amount in whole dollars">
-      <button class="btn btn-primary btn-block" type="submit" style="margin-top:12px">Send request</button>
+      <button class="btn btn-primary btn-block field-gap" type="submit">Send request</button>
     </form>`);
   const getContact = wireContactPicker(modal);
   modal.querySelector('#req-form').addEventListener('submit', (e) => {
@@ -486,12 +509,12 @@ function payFlow() {
   const stores = snap.merchants.filter((m) => m.role === 'store');
   const modal = openModal(`
     ${modalHead('Pay in store')}
-    <p class="muted" style="margin-bottom:16px">Pick a checkout to simulate swiping card ...4821 and entering your PIN.</p>
+    <p class="modal-text">Pick a checkout to simulate swiping card ...4821 and entering your PIN.</p>
     <div class="merchant-list">${stores.map((m, i) => `
       <button class="merchant-option" data-i="${i}">
         <span class="avatar">${escapeHtml(m.initials)}</span>
-        <span class="grow"><strong>${escapeHtml(m.name)}</strong><span class="muted" style="font-size:0.85rem">${escapeHtml(m.place)}</span></span>
-        <strong>${money.format(m.amount)}</strong>
+        <span class="grow"><strong>${escapeHtml(m.name)}</strong><span class="muted small">${escapeHtml(m.place)}</span></span>
+        <span class="price">${money.format(m.amount)}</span>
       </button>`).join('')}
     </div>`);
   modal.querySelectorAll('.merchant-option').forEach((b) => {
@@ -521,7 +544,7 @@ function registerFlow() {
       ${modalHead('Link your SwampTag key')}
       ${TAP_ICON}
       <div class="approval-prompt">Tap the key fob you want to link</div>
-      <p class="muted" style="margin-top:6px;font-size:0.9rem">From now on, payments from card ...4821 will need this key when something looks risky.</p>
+      <p class="approval-note">From now on, payments from card ...4821 will need this key when something looks risky.</p>
       ${demoButtonsHtml({ wrong: false })}
     </div>`);
   wireDemoButtons(modal);
@@ -535,15 +558,31 @@ function registerFlow() {
       Store.addAlert('good', 'SwampTag key linked', `Key ${uid} now protects card ...4821.`);
       renderAll();
       showResult('good', 'Key linked', `Key ${uid} now protects payments from card ...4821.`);
+      syncKeyToProfile(uid);
     },
   };
 }
 
-function unlinkKey() {
-  if (!confirm('Unlink this key? Payments will no longer need a tap.')) return;
+async function unlinkKey() {
+  const ok = await confirmModal('Unlink this key?', 'Payments from card ...4821 will no longer need a tap until you link a key again.', 'Unlink key', { danger: true });
+  if (!ok) return;
   Store.addAlert('info', 'SwampTag key unlinked', `Key ${state.keyUid} was removed.`);
   Store.set('keyUid', null);
   renderAll();
+  syncKeyToProfile(null);
+}
+
+// Saves the linked key to the signed-in user's Auth0 profile (user_metadata.swamptag_key).
+async function syncKeyToProfile(uid) {
+  if (!Auth.enabled || Auth.usingDemo()) return;
+  try {
+    await Auth.saveKey(uid);
+    Store.addAlert('good', uid ? 'Key saved to your Auth0 profile' : 'Key removed from your Auth0 profile', 'It follows you to any browser you sign in on.');
+    renderShield();
+  } catch (err) {
+    console.warn(err);
+    toast("Couldn't reach your Auth0 profile, so the key is saved on this device only.");
+  }
 }
 
 async function toggleConnection() {
@@ -585,15 +624,15 @@ $('#smart-toggle').addEventListener('change', (e) => {
   Store.set('alwaysTap', !e.target.checked);
   toast(e.target.checked ? 'Smart taps on: trusted small purchases skip the tap.' : 'Every payment now needs a tap.');
 });
-$('#reset-link').addEventListener('click', async (e) => {
-  e.preventDefault();
-  const note = Bank.live ? ' Nessie transactions stay; run "python tools/seed_nessie.py --fresh" for a clean bank account.' : '';
-  if (!confirm('Reset the demo? This clears the linked key, alerts and blocked attempts.' + note)) return;
-  closeModal();
+$('#reset-link').addEventListener('click', async () => {
+  const note = Bank.live ? ' Nessie transactions stay. Run "python tools/seed_nessie.py --fresh" for a clean bank account.' : '';
+  const ok = await confirmModal('Reset the demo?', 'This clears the linked key, alerts and blocked attempts on this device.' + note, 'Reset demo', { danger: true });
+  if (!ok) return;
   Store.reset();
   lastTap = null;
   await refresh();
 });
+$('#signout-btn').addEventListener('click', () => Auth.logout());
 
 document.addEventListener('keydown', (e) => {
   if (e.target.matches('input, textarea')) return;
@@ -603,10 +642,50 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'x' || e.key === 'X') simulateTap(false);
 });
 
-const hour = new Date().getHours();
-$('#greeting').textContent = `${hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'}, Albert`;
+function greet(firstName) {
+  const hour = new Date().getHours();
+  $('#greeting').textContent = `${hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'}, ${firstName}`;
+}
+
+// Shows the Auth0 user in the header and loads their linked key from the profile.
+async function signInWithAuth0() {
+  const user = await Auth.user();
+  const name = user.given_name || user.name || user.nickname || user.email || 'there';
+  greet(name.split(/[\s@]/)[0]);
+  $('#user-name').textContent = user.name || user.email || 'Signed in';
+  $('#auth-badge').classList.remove('hidden');
+  const avatar = $('#user-avatar');
+  if (user.picture) {
+    const img = document.createElement('img');
+    img.src = user.picture;
+    img.alt = '';
+    avatar.replaceChildren(img);
+  } else {
+    avatar.textContent = initialsOf(user.name || user.email || '?');
+  }
+
+  try {
+    const key = await Auth.getKey();
+    if (key && key !== state.keyUid) {
+      Store.set('keyUid', key);
+      toast(`Loaded key ${key} from your Auth0 profile.`);
+    }
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+greet('Albert');
 
 (async () => {
+  // With Auth0 set up, the dashboard needs a signed-in user (or the demo account).
+  if (await Auth.init()) {
+    if (await Auth.isAuthenticated()) await signInWithAuth0();
+    else if (!Auth.usingDemo()) {
+      location.replace('login.html');
+      return;
+    }
+  }
   await Bank.init();
   await refresh();
   if (!Bank.live) toast(`Using offline demo data: ${Bank.offlineReason}`);

@@ -218,13 +218,7 @@ const Bank = {
   },
 
   async init() {
-    let cfg;
-    try {
-      const res = await fetch('/api/config', { cache: 'no-store' });
-      cfg = await res.json();
-    } catch {
-      cfg = { live: false, reason: 'Start the site with "python server.py" to use Nessie' };
-    }
+    const cfg = await loadConfig(); // config.js
     if (cfg.live) {
       NessieBank.cfg = cfg;
       this.backend = NessieBank;

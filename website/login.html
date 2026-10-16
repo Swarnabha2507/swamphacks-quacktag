@@ -4,14 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Log in – SwampTag</title>
+  <meta name="description" content="Sign in to SwampTag to manage your money and your tap-to-approve key.">
+  <meta name="theme-color" content="#004977">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="auth-page">
-
-  <div class="auth-wrap">
+  <main class="auth-wrap" id="main">
     <div class="card auth-card">
       <a class="logo" href="index.html" aria-label="SwampTag home">
         <svg viewBox="0 0 32 32" aria-hidden="true">
@@ -24,33 +26,83 @@
       </a>
 
       <h1>Welcome back</h1>
-      <p class="muted">Log in to manage your money and your SwampTag key.</p>
+      <p class="muted">Sign in to manage your money and your SwampTag key.</p>
 
-      <div class="demo-hint">Demo account: the details are already filled in, so just press <strong>Log in</strong>.</div>
-
-      <form id="login-form" style="margin-top:18px">
-        <div class="field">
-          <label for="email">Email</label>
-          <input class="input" id="email" type="email" value="albert.gator@ufl.edu" autocomplete="username" required>
+      <!-- Shown when Auth0 is configured -->
+      <div id="auth0-box" class="hidden">
+        <div class="auth-form">
+          <button class="btn btn-primary btn-block" id="auth0-login">Sign in securely</button>
+          <div class="auth-perks"><span>Google sign-in</span><span>Multi-factor</span><span>Passkeys</span></div>
         </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <input class="input" id="password" type="password" value="gochomp2026" autocomplete="current-password" required>
-        </div>
-        <button class="btn btn-primary btn-block" type="submit">Log in</button>
-      </form>
+        <div class="auth-divider">or</div>
+        <button class="btn btn-ghost btn-block" id="show-demo">Use the demo account</button>
+      </div>
 
-      <p class="muted" style="margin-top:20px;font-size:0.88rem;text-align:center">
-        New to SwampTag? <a href="login.html">Create an account</a>
-      </p>
+      <!-- Demo account (default when Auth0 isn't set up, or as a fallback) -->
+      <div id="demo-box">
+        <div class="demo-hint">Demo account: the details are filled in, so just press <strong>Log in</strong>.</div>
+        <form id="login-form" class="auth-form" novalidate>
+          <div class="field">
+            <label for="email">Email</label>
+            <input class="input" id="email" type="email" value="albert.gator@ufl.edu" autocomplete="username" required>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input class="input" id="password" type="password" value="gochomp2026" autocomplete="current-password" required minlength="6">
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Log in</button>
+          <p class="form-error hidden" id="form-error" role="alert"></p>
+        </form>
+      </div>
+
+      <p class="form-error hidden" id="auth-error" role="alert"></p>
+      <p class="auth-foot"><a href="index.html">← Back to home</a></p>
     </div>
-  </div>
+  </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@auth0/auth0-spa-js@2.27.0/dist/auth0-spa-js.production.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
   <script>
+    const show = (id, on) => document.getElementById(id).classList.toggle('hidden', !on);
+
+    function showError(id, message) {
+      const el = document.getElementById(id);
+      el.textContent = message;
+      el.classList.remove('hidden');
+    }
+
     document.getElementById('login-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      window.location.href = 'dashboard.html';
+      const email = document.getElementById('email');
+      const password = document.getElementById('password');
+      email.setAttribute('aria-invalid', String(!email.validity.valid));
+      password.setAttribute('aria-invalid', String(!password.validity.valid));
+      if (!email.validity.valid) return showError('form-error', 'Enter a valid email address.');
+      if (!password.validity.valid) return showError('form-error', 'Your password needs at least 6 characters.');
+      Auth.startDemo();
+      location.href = 'dashboard.html';
     });
+
+    (async () => {
+      if (!(await Auth.init())) return; // No Auth0: the demo form is already showing.
+
+      show('auth0-box', true);
+      show('demo-box', false);
+      document.getElementById('auth0-login').addEventListener('click', () => Auth.login());
+      document.getElementById('show-demo').addEventListener('click', () => {
+        show('demo-box', true);
+        show('show-demo', false);
+      });
+
+      try {
+        await Auth.handleRedirect();
+      } catch (err) {
+        showError('auth-error', `Sign-in didn't finish: ${err.error_description || err.message}`);
+        return;
+      }
+      if (await Auth.isAuthenticated()) location.replace('dashboard.html');
+    })();
   </script>
 </body>
 </html>

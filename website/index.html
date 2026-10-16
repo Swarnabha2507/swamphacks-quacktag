@@ -3,14 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SwampTag – Tap to approve every payment</title>
-  <meta name="description" content="SwampTag adds a physical tap-to-approve key to your debit card, so skimmed cards and stolen PINs are useless to thieves.">
+  <title>SwampTag – Tap to approve risky payments</title>
+  <meta name="description" content="SwampTag pairs your debit card with an RFID key. Risky payments need a tap, so a skimmed card and a stolen PIN can't spend your money.">
+  <meta name="theme-color" content="#004977">
+  <meta property="og:title" content="SwampTag – Tap to approve risky payments">
+  <meta property="og:description" content="Skimmers copy cards. Shoulder-surfers steal PINs. Nobody can steal your tap.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
 
   <header class="site-nav">
     <div class="container">
@@ -24,44 +30,41 @@
         <span>Swamp<em>Tag</em></span>
       </a>
       <nav aria-label="Main">
+        <a href="#security">The problem</a>
         <a href="#how">How it works</a>
-        <a href="#security">Security</a>
         <a href="#features">Features</a>
-        <a href="#faq">Help</a>
+        <a href="#faq">Questions</a>
       </nav>
       <div class="nav-actions">
         <a class="btn btn-ghost btn-sm" href="login.html">Log in</a>
-        <a class="btn btn-primary btn-sm" href="login.html">Sign up</a>
+        <a class="btn btn-primary btn-sm" href="login.html">Open the demo</a>
       </div>
     </div>
   </header>
 
-  <main>
-    <!-- Hero -->
+  <main id="main">
     <section class="hero">
       <div class="container">
         <div>
-          <div class="eyebrow"><span class="dot"></span> Two-factor protection for your debit card</div>
+          <span class="eyebrow">Two-factor protection for your debit card</span>
           <h1>Skimmers copy cards. Shoulder-surfers steal PINs. <span class="accent">Nobody can steal your tap.</span></h1>
-          <p class="lead">SwampTag pairs your debit card with a tiny RFID key. Anything risky needs a tap from that key, so a cloned card and a stolen PIN still can't spend your money.</p>
+          <p class="lead">SwampTag pairs your debit card with a small RFID key. Anything risky needs a tap from that key, so a cloned card and a stolen PIN still can't spend your money.</p>
           <div class="hero-ctas">
             <a class="btn btn-primary" href="login.html">Open the demo account</a>
-            <a class="btn btn-outline" href="#how">See how it works</a>
+            <a class="btn btn-ghost" href="#how">See how it works →</a>
           </div>
           <div class="hero-note">
             <span>Works with the card you already have</span>
-            <span>No app to unlock at checkout</span>
+            <span>Coffee at your usual spot needs no tap</span>
           </div>
         </div>
 
         <div class="phone" aria-hidden="true">
           <div class="phone-screen">
             <div class="phone-notch"></div>
-            <div class="phone-merchant">
-              <div class="avatar">PX</div> Publix Super Market
-            </div>
-            <div class="phone-amount">$42.00</div>
-            <div class="phone-sub">Card ending 4821 · Gainesville, FL</div>
+            <div class="phone-merchant"><div class="avatar">QF</div> QuickFuel Gas #2291</div>
+            <div class="phone-amount">$390.00</div>
+            <div class="phone-sub">Orlando, FL · 96 mi from home</div>
             <div class="tap-ripple">
               <div class="core">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
@@ -71,133 +74,128 @@
               </div>
             </div>
             <div class="phone-cta">Tap your SwampTag to approve</div>
-            <div class="phone-sub">Hold your key near the reader</div>
-            <div class="phone-badge">🔒 Protected by SwampTag</div>
+            <div class="phone-sub">New merchant · 15× your usual spend</div>
+            <div class="phone-badge">Protected by SwampTag</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Problem -->
     <section class="section" id="security">
-      <div class="container">
+      <div class="container split">
         <div class="section-head">
           <h2>Your card and PIN are easier to steal than you think</h2>
-          <p>Debit fraud usually needs only two things: a copy of your card and your PIN. Thieves get both without ever touching your wallet.</p>
+          <p>Debit fraud needs only two things: a copy of your card and your PIN. Thieves get both without touching your wallet, and debit money leaves your checking account right away.</p>
         </div>
-        <div class="grid-3">
-          <article class="card threat-card">
-            <div class="icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+        <ul class="threat-list">
+          <li class="threat">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg></div>
+            <div>
+              <h3>Card skimming</h3>
+              <p>A hidden reader on a gas pump or ATM copies your card in the second it takes to swipe.</p>
+              <span class="gets">Gets your card number</span>
             </div>
-            <h3>Card skimming</h3>
-            <p>A hidden device on a gas pump or ATM copies your card's data in the second it takes to swipe.</p>
-            <span class="tag">Gets: your card number</span>
-          </article>
-          <article class="card threat-card">
-            <div class="icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </li>
+          <li class="threat">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div>
+              <h3>Shoulder-surfing</h3>
+              <p>Someone behind you in line, or a pinhole camera above the keypad, watches you type your PIN.</p>
+              <span class="gets">Gets your PIN</span>
             </div>
-            <h3>Shoulder-surfing</h3>
-            <p>Someone behind you in line, or a pinhole camera above the keypad, watches you type your PIN.</p>
-            <span class="tag">Gets: your PIN</span>
-          </article>
-          <article class="card threat-card">
-            <div class="icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          </li>
+          <li class="threat">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 9 4 4 3-3 6 6"/></svg></div>
+            <div>
+              <h3>Drained checking</h3>
+              <p>With both, a thief can shop or pull cash. The money is gone while the bank investigates.</p>
+              <span class="gets">Gets your money</span>
             </div>
-            <h3>Drained checking</h3>
-            <p>With both, a thief can shop or withdraw cash. Debit takes money straight from your account, so it's gone while the bank investigates.</p>
-            <span class="tag">Gets: your money</span>
-          </article>
-        </div>
+          </li>
+        </ul>
       </div>
     </section>
 
-    <!-- How it works -->
     <section class="section section-alt" id="how">
       <div class="container">
         <div class="section-head">
-          <h2>One extra tap. Zero stolen payments.</h2>
-          <p>SwampTag adds something only you carry: a key fob that has to be physically present to approve each payment.</p>
+          <h2>One extra tap, only when it matters</h2>
+          <p>SwampTag adds something only you carry: a key fob that has to be physically present before a risky payment goes through.</p>
         </div>
-        <div class="grid-4 steps">
+        <div class="steps">
           <div class="step">
             <h3>Swipe and enter your PIN</h3>
-            <p>Check out the same way you always do, at the register, the ATM, or online.</p>
+            <p>Check out the way you always do, at the register, the ATM or online.</p>
           </div>
           <div class="step">
-            <h3>SwampTag asks for your key</h3>
-            <p>Before any money moves, the payment is held and the reader lights up.</p>
+            <h3>SwampTag checks the risk</h3>
+            <p>New merchant? Far from home? Unusually large? The payment is held and the reader lights up.</p>
           </div>
           <div class="step step-good">
             <h3>Tap to approve</h3>
-            <p>Tap your registered key fob. The reader shows a ✓ and the payment goes through.</p>
+            <p>Tap your registered fob. The reader shows a check mark and the payment goes through.</p>
           </div>
           <div class="step step-bad">
-            <h3>Wrong tag? Blocked.</h3>
-            <p>A thief with your card and PIN still doesn't have your key. The payment is blocked and you get an alert right away.</p>
+            <h3>Wrong tag is blocked</h3>
+            <p>A thief with your card and PIN still doesn't have your key. The payment stops and you get an alert.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Features -->
     <section class="section" id="features">
-      <div class="container">
+      <div class="container split">
         <div class="section-head">
-          <h2>Built for the way you actually pay</h2>
-          <p>Strong security that stays out of your way until someone else tries to use your card.</p>
+          <h2>Strong security that stays out of your way</h2>
+          <p>Built for the way students actually pay: lots of small purchases at the same few places, and the occasional big one.</p>
         </div>
-        <div class="grid-4">
-          <article class="card feature-card">
-            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>
-            <h3>2FA on every payment</h3>
-            <p>Not just at login. Each purchase and transfer needs your physical key.</p>
-          </article>
-          <article class="card feature-card">
-            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div>
+        <div class="feature-grid">
+          <div class="feature">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 7.5a6 6 0 0 1 0 9"/><path d="M12 5a9.5 9.5 0 0 1 0 14"/><path d="M15.5 2.5a13 13 0 0 1 0 19"/></svg></div>
+            <h3>A physical second factor</h3>
+            <p>Not a text code a scammer can talk you out of. The key has to be in your hand.</p>
+          </div>
+          <div class="feature">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></div>
             <h3>Smart taps</h3>
-            <p>Small purchases at places you already shop skip the tap. New merchants, far-away places and unusual amounts always ask.</p>
-          </article>
-          <article class="card feature-card">
+            <p>Coffee at your usual spot goes straight through. New merchants, far-away places and unusual amounts ask for a tap.</p>
+          </div>
+          <div class="feature">
             <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
             <h3>Lost-key lockout</h3>
             <p>Lost your fob? Unlink it in one click and register a new one.</p>
-          </article>
-          <article class="card feature-card">
-            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
-            <h3>Works with any card</h3>
-            <p>Keep your bank and your card. SwampTag adds a layer on top.</p>
-          </article>
+          </div>
+          <div class="feature">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg></div>
+            <h3>Runs on real bank data</h3>
+            <p>Accounts, merchants, purchases, transfers and bills come from Capital One's Nessie API.</p>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- FAQ -->
     <section class="section section-alt" id="faq">
       <div class="container">
         <div class="section-head">
           <h2>Questions, answered</h2>
         </div>
-        <div class="grid-3">
-          <article class="card feature-card">
-            <h3>What if someone steals my key fob?</h3>
-            <p>They'd still need your card and your PIN. That's three separate things. You can also unlink a lost key instantly from your dashboard.</p>
-          </article>
-          <article class="card feature-card">
-            <h3>Is this slower at checkout?</h3>
-            <p>A tap takes under a second, which is faster than unlocking your phone for a one-time code.</p>
-          </article>
-          <article class="card feature-card">
-            <h3>How is it built?</h3>
-            <p>An Arduino UNO R4 WiFi with an RC522 RFID reader talks to the bank site over USB. Accounts, merchants, purchases, transfers and bills run on Capital One's Nessie API.</p>
-          </article>
-        </div>
+        <dl class="faq">
+          <div class="faq-item">
+            <dt>What if someone steals my key fob?</dt>
+            <dd>They'd still need your card and your PIN, which makes three separate things. You can also unlink a lost key from your dashboard right away.</dd>
+          </div>
+          <div class="faq-item">
+            <dt>Is this slower at checkout?</dt>
+            <dd>Most everyday purchases don't ask at all. When one does, a tap takes under a second, which is faster than waiting for a text code.</dd>
+          </div>
+          <div class="faq-item">
+            <dt>How is it built?</dt>
+            <dd>An Arduino UNO R4 WiFi with an RC522 RFID reader talks to the bank site over USB. Accounts, merchants, purchases, transfers and bills run on Capital One's Nessie API.</dd>
+          </div>
+        </dl>
       </div>
     </section>
 
-    <!-- CTA -->
     <section class="section">
       <div class="container">
         <div class="cta-banner">
@@ -205,7 +203,7 @@
             <h2>Make your debit card worthless to thieves.</h2>
             <p>Try the live demo: link a key, send money, and watch a fraud attempt get blocked.</p>
           </div>
-          <a class="btn btn-primary" href="login.html">Try SwampTag</a>
+          <a class="btn btn-white" href="login.html">Open the demo account</a>
         </div>
       </div>
     </section>
@@ -213,37 +211,23 @@
 
   <footer class="site-footer">
     <div class="container">
-      <div>
-        <a class="logo" href="index.html">
-          <svg viewBox="0 0 32 32" aria-hidden="true">
-            <rect width="32" height="32" rx="9" fill="#ffffff"/>
-            <circle cx="10" cy="16" r="2.6" fill="#004977"/>
-            <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#004977" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-            <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#d03027" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-          </svg>
-          <span>Swamp<em>Tag</em></span>
-        </a>
-        <p>Tap-to-approve protection for debit cards. Built at SwampHacks, University of Florida.</p>
-      </div>
-      <div>
-        <h4>Product</h4>
+      <a class="logo" href="index.html" aria-label="SwampTag home">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="9" fill="#004977"/>
+          <circle cx="10" cy="16" r="2.6" fill="#fff"/>
+          <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#d03027" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span>Swamp<em>Tag</em></span>
+      </a>
+      <nav aria-label="Footer">
         <a href="#how">How it works</a>
         <a href="#features">Features</a>
+        <a href="#faq">Questions</a>
         <a href="login.html">Demo account</a>
-      </div>
-      <div>
-        <h4>Security</h4>
-        <a href="#security">Threats we stop</a>
-        <a href="#faq">Lost key</a>
-      </div>
-      <div>
-        <h4>Company</h4>
-        <a href="#">About</a>
-        <a href="#faq">Help</a>
-      </div>
-      <div class="footer-bottom">© 2026 SwampTag · Hackathon prototype. Not a real bank, and no real money moves.</div>
+      </nav>
+      <p class="footer-note">Built at SwampHacks, University of Florida. A hackathon prototype: not a real bank, and no real money moves.</p>
     </div>
   </footer>
-
 </body>
 </html>

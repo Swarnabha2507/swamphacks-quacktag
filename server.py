@@ -5,6 +5,7 @@ adding the API key on the server so it never reaches the browser.
 
     python server.py            # http://localhost:8000
     python server.py 8080       # pick another port
+    python server.py --offline  # ignore the Nessie key and use offline demo data
 
 Only uses the Python standard library.
 """
@@ -39,7 +40,7 @@ def load_env():
 load_env()
 NESSIE_BASE = os.environ.get("NESSIE_BASE", "https://api.nessieisreal.com").rstrip("/")
 API_KEY = os.environ.get("NESSIE_API_KEY", "").strip()
-if API_KEY == "paste-your-key-here":
+if API_KEY == "paste-your-key-here" or (__name__ == "__main__" and "--offline" in sys.argv):
     API_KEY = ""
 
 
@@ -69,7 +70,16 @@ def load_ids():
     return json.loads(IDS_FILE.read_text(encoding="utf-8"))
 
 
-def build_config():
+def auth0_config():
+    """Public Auth0 SPA settings (not secrets), or None when Auth0 isn't set up."""
+    domain = os.environ.get("AUTH0_DOMAIN", "").strip().removeprefix("https://").rstrip("/")
+    client_id = os.environ.get("AUTH0_CLIENT_ID", "").strip()
+    if not domain or not client_id or "paste" in domain or "paste" in client_id:
+        return None
+    return {"domain": domain, "clientId": client_id}
+
+
+def nessie_config():
     """What the dashboard needs to know to talk to Nessie, or why it can't."""
     if not API_KEY:
         return {"live": False, "reason": "No Nessie API key yet (add it to .env)"}
@@ -83,6 +93,14 @@ def build_config():
     if status != 200:
         return {"live": False, "reason": f"Nessie returned HTTP {status}"}
     return {"live": True, **ids}
+
+
+def build_config():
+    config = nessie_config()
+    auth0 = auth0_config()
+    if auth0:
+        config["auth0"] = auth0
+    return config
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -147,11 +165,13 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def main():
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    ports = [a for a in sys.argv[1:] if a.isdigit()]
+    port = int(ports[0]) if ports else 8000
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print(f"SwampTag running at http://localhost:{port}  (Ctrl+C to stop)")
     print("Nessie key:", "found" if API_KEY else "missing (offline demo data)")
     print("Nessie IDs:", "found" if IDS_FILE.exists() else "missing (run python tools/seed_nessie.py)")
+    print("Auth0:", "on" if auth0_config() else "off (demo login; add AUTH0_DOMAIN and AUTH0_CLIENT_ID to .env)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
