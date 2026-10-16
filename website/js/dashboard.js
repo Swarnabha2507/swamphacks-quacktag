@@ -169,6 +169,7 @@ function renderKeyPanel() {
   $('#last-tap').textContent = lastTap ? `${lastTap.uid} · ${formatDate(lastTap.date)}` : '—';
 
   $('#demo-toggle').checked = state.demoMode;
+  $('#scam-toggle').checked = state.scamCheck;
   $('#smart-toggle').checked = !state.alwaysTap;
 }
 
@@ -208,6 +209,7 @@ function openModal(html, { locked = false } = {}) {
 function closeModal() {
   $('#modal-root').innerHTML = '';
   modalLocked = false;
+  stopSpeaking();
   // Closing a "tap your key" screen early cancels it.
   if (pending) {
     pending = null;
@@ -478,7 +480,123 @@ function sendFlow() {
     if (!(amount > 0)) return toast('Enter an amount of at least $1.');
     const c = getContact();
     const note = modal.querySelector('#send-note').value.trim() || 'Sent with SwampTag';
-    startPayment({ kind: 'transfer', name: c.name, initials: c.initials, place: 'Peer-to-peer', note, contact: c, amount });
+    const payment = { kind: 'transfer', name: c.name, initials: c.initials, place: 'Peer-to-peer', note, contact: c, amount };
+    if (state.scamCheck && needsScamCheck(amount)) scamCheckFlow(payment);
+    else startPayment(payment);
+  });
+}
+
+// Large transfers: ask why first. Red-flag answers get a warning and alert the trusted contact.
+function scamCheckFlow(payment) {
+  const modal = openModal(`
+    ${modalHead(`Before you send ${money.format(payment.amount)}`)}
+    <p class="modal-text">For larger transfers, SwampTag asks why. Scammers often rush people, especially older adults, into sending money.</p>
+    <form id="why-form" novalidate>
+      <fieldset class="reason-list">
+        <legend>Why are you sending this money to ${escapeHtml(payment.name)}?</legend>
+        ${TRANSFER_REASONS.map((r) => `
+          <label class="reason"><input type="radio" name="why" value="${r.id}"><span>${escapeHtml(r.label)}</span></label>`).join('')}
+      </fieldset>
+      <div class="field">
+        <label for="why-text">Tell us a little more (optional)</label>
+        <textarea class="input" id="why-text" maxlength="200" placeholder="e.g. My grandson called and needs bail money"></textarea>
+      </div>
+      <p class="form-error hidden" id="why-error" role="alert">Choose the reason that fits best.</p>
+      <button class="btn btn-primary btn-block" type="submit">Continue</button>
+    </form>`);
+
+  modal.querySelector('#why-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const choice = modal.querySelector('input[name="why"]:checked');
+    if (!choice) {
+      modal.querySelector('#why-error').classList.remove('hidden');
+      return;
+    }
+    const explanation = modal.querySelector('#why-text').value;
+    showResult('busy', 'Reviewing your answer…', 'Checking it against common scams that target older adults.');
+    const review = await reviewTransfer(choice.value, explanation, payment.amount);
+    if (!review.flag) {
+      closeModal();
+      toast('Scam review: no red flags found.');
+      startPayment(payment);
+      return;
+    }
+    scamWarning(payment, review);
+  });
+}
+
+// Reads text aloud with the browser's built-in voice (Web Speech API). Silent if unsupported.
+function speak(text) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    speechSynthesis.speak(utterance);
+  } catch { /* no voice available */ }
+}
+
+function stopSpeaking() {
+  try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch { /* ignore */ }
+}
+
+function scamWarning(payment, review) {
+  Store.addAlert('danger', `Scam check flagged ${money.format(payment.amount)} to ${payment.name}`,
+    `${review.flag}. We let ${TRUSTED_CONTACT.name}, your ${TRUSTED_CONTACT.relation}, know.`);
+  renderShield();
+
+  const spoken = `Stop. This looks like a scam. ${review.warning} If you still want to send this money, please call SwampTag fraud support first, at ${FRAUD_LINE.spoken}.`;
+  const modal = openModal(`
+    <div class="scam-warning">
+      <div class="result-icon bad">!</div>
+      <h2>Stop. This looks like a scam.</h2>
+      <div class="review-box">
+        <span class="risk-label">Scam review · ${review.confidence}% match</span>
+        <ul>${review.findings.map((f) => `<li>${escapeHtml(f)}</li>`).join('')}</ul>
+      </div>
+      <p class="modal-text">${escapeHtml(review.warning)}</p>
+      <div class="call-box">
+        <strong>Still want to send ${money.format(payment.amount)}?</strong>
+        <span>Call SwampTag fraud support first. We'll talk it through with you and give you a code.</span>
+        <a class="call-number" href="tel:${FRAUD_LINE.tel}">${FRAUD_LINE.label}</a>
+      </div>
+      <p class="notice">We let <strong>${escapeHtml(TRUSTED_CONTACT.name)}</strong>, your ${escapeHtml(TRUSTED_CONTACT.relation)}, know about this transfer.</p>
+      <button class="btn btn-navy btn-block stack-gap" id="scam-cancel">Cancel this transfer</button>
+      <button class="btn btn-ghost btn-block stack-gap" id="scam-speak">🔊 Read this to me again</button>
+      <form class="verify-form" id="verify-form" novalidate>
+        <label for="verify-code">Code from your call</label>
+        <div class="verify-row">
+          <input class="input" id="verify-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+          <button class="btn btn-outline" type="submit">Verify</button>
+        </div>
+        <p class="form-error hidden" id="verify-error" role="alert">That code doesn't match. Call ${FRAUD_LINE.label} to get one.</p>
+        ${state.demoMode ? `<p class="panel-note">Demo code: ${DEMO_VERIFY_CODE}</p>` : ''}
+      </form>
+      <p class="fine-print">Simulated scam review for the demo.</p>
+    </div>`, { locked: true });
+
+  speak(spoken);
+  modal.querySelector('#scam-speak').addEventListener('click', () => speak(spoken));
+
+  modal.querySelector('#scam-cancel').addEventListener('click', () => {
+    stopSpeaking();
+    Store.addLocalRow({ name: payment.name, initials: payment.initials, sub: `Stopped by Scam check · ${review.flag}`, amount: -payment.amount, status: 'blocked' });
+    Store.addAlert('good', `You stopped ${money.format(payment.amount)} from leaving`, 'Good call. When in doubt, talk to someone you trust first.');
+    renderAll(true);
+    showResult('good', 'Transfer cancelled', `Your ${money.format(payment.amount)} stayed in your account.`);
+  });
+
+  modal.querySelector('#verify-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = modal.querySelector('#verify-code');
+    if (input.value.trim() !== DEMO_VERIFY_CODE) {
+      input.setAttribute('aria-invalid', 'true');
+      modal.querySelector('#verify-error').classList.remove('hidden');
+      return;
+    }
+    closeModal();
+    Store.addAlert('info', 'Fraud support verified a flagged transfer', `${money.format(payment.amount)} to ${payment.name}. Your key is still required.`);
+    startPayment({ ...payment, scamFlag: review.flag });
   });
 }
 
@@ -619,6 +737,10 @@ $('#connect-btn').addEventListener('click', toggleConnection);
 $('#demo-toggle').addEventListener('change', (e) => {
   Store.set('demoMode', e.target.checked);
   renderKeyPanel();
+});
+$('#scam-toggle').addEventListener('change', (e) => {
+  Store.set('scamCheck', e.target.checked);
+  toast(e.target.checked ? `Scam check on: transfers of $${SCAM_CHECK_FROM} or more ask why first.` : 'Scam check off.');
 });
 $('#smart-toggle').addEventListener('change', (e) => {
   Store.set('alwaysTap', !e.target.checked);

@@ -239,6 +239,9 @@ p { margin: 0; text-wrap: pretty; }
 .threat p { color: var(--muted); max-width: 52ch; }
 .threat .gets { display: inline-block; margin-top: 10px; font-size: 0.82rem; font-weight: 600; color: var(--danger); }
 
+.guard-list .icon { background: var(--link-soft); color: var(--brand); }
+.section-foot { margin-top: 18px; font-size: 0.9rem; color: var(--muted); }
+
 .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; counter-reset: step; }
 .step { position: relative; padding-top: 60px; }
 .step::before { counter-increment: step; content: counter(step); position: absolute; top: 0; left: 0; width: 40px; height: 40px; border-radius: 12px; background: var(--brand); color: #fff; font-weight: 600; display: grid; place-items: center; }
@@ -487,6 +490,30 @@ p { margin: 0; text-wrap: pretty; }
 .demo-label { font-size: 0.78rem; font-weight: 600; color: var(--muted); width: 100%; }
 .fraud-banner { background: var(--danger-soft); color: var(--danger); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 0.86rem; font-weight: 500; margin-bottom: 14px; text-align: left; }
 .field-gap { margin-top: 12px; }
+
+/* Scam check: "Why are you sending this?" */
+.reason-list { display: grid; gap: 8px; margin: 0 0 14px; padding: 0; border: none; }
+.reason-list legend { font-weight: 600; margin-bottom: 8px; padding: 0; }
+.reason { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 0.93rem; transition: border-color 0.2s var(--ease), background 0.2s var(--ease); }
+.reason:hover { border-color: var(--link); }
+.reason:has(input:checked) { border-color: var(--link); background: var(--link-soft); }
+.reason input { margin-top: 3px; accent-color: var(--link); }
+textarea.input { resize: vertical; min-height: 64px; }
+.scam-warning { text-align: left; }
+.scam-warning .result-icon { margin-left: 0; }
+.scam-warning h2 { font-size: 1.3rem; color: var(--danger); font-weight: 600; margin-bottom: 8px; }
+.review-box { margin: 4px 0 14px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--danger-soft); }
+.review-box .risk-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--danger); margin-bottom: 6px; }
+.review-box ul { margin: 0; padding-left: 18px; font-size: 0.9rem; }
+.review-box li + li { margin-top: 4px; }
+.call-box { display: grid; gap: 4px; margin: 14px 0; padding: 14px; border: 1.5px solid var(--link); border-radius: var(--radius-sm); background: var(--link-soft); font-size: 0.92rem; }
+.call-number { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.verify-form { margin-top: 10px; padding-top: 14px; border-top: 1px dashed var(--border); }
+.verify-form label { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 6px; }
+.verify-row { display: flex; gap: 8px; }
+.verify-row .input { flex: 1; letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
+.fine-print { margin-top: 14px; font-size: 0.75rem; color: var(--muted); text-align: center; }
+.notice { margin: 14px 0 20px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 0.88rem; }
 
 /* ---------- Toast ---------- */
 

@@ -43,6 +43,7 @@ function seedState() {
     keyUid: null,
     demoMode: false,
     alwaysTap: false,
+    scamCheck: true, // ask "why are you sending this?" before large transfers (scamcheck.js)
     localRows: [],
     alerts: [
       { level: 'info', title: 'Debit card ending 4821 added', detail: 'Link a SwampTag key to protect it.', date: daysFromNow(-15, 9) },

@@ -1,19 +1,25 @@
 # SwampTag
 
-**Tap-to-approve two-factor authentication for debit cards, built on Capital One's Nessie API.** Built at SwampHacks (University of Florida) for the *Hardware & Physical Computing*, *First Timers* and *Capital One – Best Use of Nessie* tracks.
+**Tap-to-approve protection for debit cards, built on Capital One's Nessie API.**
+
+Built at SwampHacks (University of Florida) for these tracks:
+- Hardware & Physical Computing
+- First Timers
+- Capital One – Best Use of Nessie
+- Best Use of Auth0
 
 ## The problem
-Debit fraud needs only two things: a copy of your card and your PIN.
-- **Skimmers** on gas pumps and ATMs copy the card.
-- **Shoulder-surfing**, from a person or a pinhole camera, captures the PIN.
-
-Debit pulls money straight from checking, so the victim is out that money while the bank investigates.
+- **Card fraud:** debit fraud needs only a copy of your card (from a **skimmer**) and your PIN (from **shoulder-surfing**). Debit pulls money straight from checking, so the victim is out that money while the bank investigates.
+- **Scams on older adults:** grandparent, fake IRS and romance scams push people to send money to a stranger fast.
 
 ## The solution
-SwampTag links the card to a physical RFID key fob.
-- **Risky payments are held until the owner taps the fob** on a reader.
+**1. A physical key.**
+- SwampTag links the card to an RFID key fob.
+- Risky payments are held until the owner taps the fob on a reader.
 - A thief with a cloned card and your PIN doesn't have the fob, so the payment is **blocked** and logged.
-- **Smart taps** use your Nessie purchase history and merchant locations to decide when to ask:
+
+**2. Smart taps.**
+- Nessie purchase history and merchant locations decide *when* to ask, so everyday purchases stay quick.
 
 | Payment | What happens |
 |---|---|
@@ -22,53 +28,83 @@ SwampTag links the card to a physical RFID key fob.
 | $390 at a gas station in Orlando | asks for a tap ("New merchant · 96 mi from home · 15× your usual spend") |
 | Sending money or paying a bill | always asks for a tap |
 
+**3. Scam check, built for older adults.** Before any transfer of **$200 or more**, SwampTag asks *"Why are you sending this money?"*
+- **Safe answers** (paying back a friend, splitting rent) go straight to the tap.
+- **Red-flag answers** pause the transfer: a family member "in trouble", "the IRS told me to", someone met online, or a prize fee.
+  - A scam review explains the danger in plain words and **reads it aloud** (browser text-to-speech).
+  - A trusted family contact gets a heads-up.
+  - To send anyway, the person must **call the fraud line** and enter the code they're given. Then the key is still required.
+- The scam review is **simulated** for the demo: rules and canned findings, no AI API. Next step: a real model (Gemini API) reading the full explanation.
+
+**4. Real sign-in.** Auth0 handles login (Google, MFA, passkeys). The linked fob is saved in the user's Auth0 profile, so it follows them to any browser.
+
+*Pitch line: Auth0 protects who you are. SwampTag protects what you pay, and how you pay it.*
+
 ## How it's built
 ```
-RC522 reader ──SPI──▶ Arduino UNO R4 WiFi ──USB──▶ Chrome (Web Serial) ──▶ SwampTag site ──▶ server.py ──▶ Nessie API
-                      LED matrix ✓ / ✗  ◀── OK / DENY ──┘                                 (adds API key)
+RC522 ──SPI──▶ UNO R4 WiFi ──USB──▶ Chrome (Web Serial) ──▶ SwampTag site ──▶ server.py ──▶ Nessie API
+               LED matrix ✓/✗ ◀── OK / DENY ──┘                    │
+                                                                 └──▶ Auth0 (login + user_metadata)
 ```
 
 | Part | Files |
 |---|---|
-| Hardware | [arduino/SwampTag/SwampTag.ino](arduino/SwampTag/SwampTag.ino) reads tags and shows ✓ / ✗ on the LED matrix. Wiring: [arduino/SETUP.md](arduino/SETUP.md) |
-| Server | [server.py](server.py) serves the site and forwards `/api/nessie/*` to Nessie with the key (Python standard library only) |
-| Nessie setup | [tools/seed_nessie.py](tools/seed_nessie.py) creates the demo customer, friends, merchants (with map locations), purchase history and bills |
-| Website | [website/](website/): home, login, dashboard. [js/bank.js](website/js/bank.js) talks to Nessie, [js/risk.js](website/js/risk.js) holds the smart-tap rules, [js/serial.js](website/js/serial.js) talks to the reader |
+| Hardware | [arduino/SwampTag/SwampTag.ino](arduino/SwampTag/SwampTag.ino). Wiring: [arduino/SETUP.md](arduino/SETUP.md) |
+| Enclosure | [cad/swamptag_reader.scad](cad/swamptag_reader.scad), a 3D-printable angled terminal. Guide: [cad/README.md](cad/README.md) |
+| Server | [server.py](server.py): serves the site, forwards `/api/nessie/*` with the key, and passes the Auth0 settings (Python standard library only) |
+| Nessie setup | [tools/seed_nessie.py](tools/seed_nessie.py) |
+| Website | [website/](website/), with one file per job in `js/`: |
+| | • [bank.js](website/js/bank.js): Nessie |
+| | • [risk.js](website/js/risk.js): smart taps |
+| | • [scamcheck.js](website/js/scamcheck.js): Scam check |
+| | • [auth.js](website/js/auth.js): Auth0 |
+| | • [serial.js](website/js/serial.js): the reader |
 | Look and feel | [STYLE_GUIDE.md](STYLE_GUIDE.md) |
 
 ### How SwampTag uses Nessie
 | Nessie | SwampTag feature |
 |---|---|
-| Customers + Accounts | Albert Gator's checking account and three friends' accounts |
+| Customers + Accounts | Albert Gator's checking account plus three friends' accounts |
 | Merchants (with `geocode`) | Pay in store options. Distance from home feeds the risk check |
-| Purchases | card payments. History says which merchants are "known" and what's "usual spend" |
-| Transfers + Deposits | peer-to-peer: a transfer out of Albert plus a deposit into the friend's account |
-| Bills (`PUT /bills/{id}`) | Upcoming bills. Paying one needs a tap, marks it completed and records a transfer |
+| Purchases | Card payments. History decides what's a "known merchant" and "usual spend" |
+| Transfers + Deposits | Peer-to-peer payments: a transfer out of Albert plus a deposit into the friend's account |
+| Bills (`PUT /bills/{id}`) | Upcoming bills. Paying one needs a tap and marks it completed |
 
-Only **approved** payments are written to Nessie. **Blocked** money never moves, so blocked attempts live in SwampTag Shield.
+Only **approved** payments are written to Nessie. Blocked money never moves.
 
 ## Run it
-1. **Nessie key:** copy `.env.example` to `.env` and paste your key from nessieisreal.com.
-2. **Seed once:** `python tools/seed_nessie.py`. Use `--fresh` later for a clean account.
-3. **Start:** `python server.py`, then open **http://localhost:8000** in **Chrome or Edge**.
-4. **Hardware:** wire and flash the Arduino ([arduino/SETUP.md](arduino/SETUP.md)), close Serial Monitor, then click **Connect reader** on the dashboard.
+1. **Nessie:** copy `.env.example` to `.env` and paste your key. Then run `python tools/seed_nessie.py` once (`--fresh` gives a clean account).
+2. **Auth0 (optional, about 10 min, free):**
+   1. Create a **Single Page Application**.
+   2. Add `http://localhost:8000/login.html`, `http://localhost:8000/dashboard.html` and `http://localhost:8000` to **Allowed Callback URLs**, **Allowed Logout URLs** and **Allowed Web Origins**.
+   3. Under **Authentication → Social**, enable Google. Under **Security → Multi-factor Auth**, enable One-time Password (and optionally Passkeys).
+   4. Add the app's `AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` to `.env`. These are public values, not secrets.
+   5. If sign-in says the app isn't authorized for the Management API: go to **APIs → Auth0 Management API → Application Access**, and give your SPA **user access** with `read:current_user` and `update:current_user_metadata`.
+3. **Start the server:** run `python server.py`, then open **http://localhost:8000** in **Chrome or Edge**.
+4. **Hardware:** wire and flash the Arduino ([arduino/SETUP.md](arduino/SETUP.md)) and close Serial Monitor. Then click **Connect reader** on the dashboard.
 
-There's no key, no internet and no Arduino on stage? It still works. The site falls back to offline demo data (amber badge), and **Demo mode** gives you simulated taps (**T** = correct key, **X** = wrong key).
+**Backups:**
+- No internet? Run `python server.py --offline` for demo data.
+- No Auth0? The demo login still works.
+- No Arduino? Turn on **Demo mode** and press **T** (correct key) or **X** (wrong key).
 
-## Demo script (about 3 minutes)
-1. Point out the green **Live · Capital One Nessie** badge. The balance, activity and bills come from Nessie.
-2. **Without protection:** click **Simulate fraud**. The charge goes through, because a cloned card and a PIN are enough today.
-3. **Link a key:** tap the **blue fob**. The key tile reads "Protected".
-4. **Smart tap skip:** Pay in store → **Starbucks $6**. Approved with no tap, because it's a known merchant near home.
-5. **Tap needed:** Pay in store → **Chipotle**. The screen explains "New merchant". Tap the fob → ✓ on the LED matrix, and the purchase lands in Nessie.
-6. **The attack:** **Simulate fraud**. The screen shows "New merchant · 96 mi from home · 15× your usual spend". The thief taps the **white card** → ✗, blocked, nothing sent to Nessie, and SwampTag Shield counts it.
-7. **P2P and bills:** send $25 to Jordan (tap) → a Nessie transfer plus deposit. Pay the Duke Energy bill (tap) → the bill is marked completed in Nessie.
+## Demo script (about 4 minutes)
+1. **Sign in** with Auth0 (Google + MFA). The dashboard shows your name and the **Live · Capital One Nessie** badge.
+2. **Without protection:** click **Simulate fraud**. The charge goes through.
+3. **Link a key:** tap the **blue fob**. The key is saved to your Auth0 profile.
+4. **Smart tap:** Pay in store → Starbucks $6. Approved with no tap.
+5. **Tap needed:** Pay in store → Chipotle → tap the fob. ✓ on the reader, and the purchase lands in Nessie.
+6. **The attack:** Simulate fraud. The screen shows "96 mi from home · 15× your usual spend". The thief taps the **white card** → ✗, blocked.
+7. **Scam check:** Send **$500** to Jordan. Choose "A family member says they are in trouble", then type "keep it secret".
+   - The warning is read aloud and Maya gets a heads-up.
+   - Show the fraud-line number, then click **Cancel this transfer**. The money stays.
+8. **Bills:** pay Duke Energy with a tap. The bill is marked completed in Nessie.
 
 ## Honest limitations and next steps
-- **Cloneable UIDs.** The prototype checks the tag's UID, which cheap tools can copy. A real product would use challenge-response tags such as MIFARE DESFire EV3, or the phone's secure element.
-- **Where verification runs.** Tag checks run in the browser for the demo. In production, the bank's server checks the tag and the terminal only relays it.
-- **Whole dollars only.** Nessie stores amounts in whole dollars, so demo prices are whole dollars.
+- **Cloneable UIDs.** The prototype checks the tag's UID, which can be cloned. Production would use challenge-response tags such as MIFARE DESFire, or a phone's secure element.
+- **Where checks run.** Tag and risk checks run in the browser for the demo. In production the bank's server does them.
+- **Simulated scam review.** The fraud line, trusted-contact alert and scam review are simulated.
 - **Next steps:**
-  - Build the reader into the card terminal.
-  - Let one fob protect several cards.
-  - Learn each person's tap-free limit from their history.
+  - A Gemini-powered review of the full explanation.
+  - Real SMS or calls to the trusted contact.
+  - The reader built into the card terminal.

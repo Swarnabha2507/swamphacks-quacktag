@@ -24,6 +24,7 @@ function assessRisk(payment, history, home, { alwaysTap = false } = {}) {
 
   if (payment.kind === 'transfer') {
     reasons.push('Sending money to a person');
+    if (payment.scamFlag) reasons.push(`Scam check: ${payment.scamFlag}`);
   } else if (payment.kind === 'bill') {
     reasons.push('Bill payment');
   } else {

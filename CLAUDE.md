@@ -1,7 +1,7 @@
 # SwampTag (SwampHacks 2026 project)
 
 RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the ledger.
-- **Tracks:** Hardware & Physical Computing, First Timers, Capital One – Best Use of Nessie.
+- **Tracks:** Hardware & Physical Computing, First Timers, Capital One – Best Use of Nessie, Best Use of Auth0.
 - **User:** a first-time hackathon participant who wants the hardware kept as simple as possible.
 
 ## Layout
@@ -19,7 +19,20 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - `js/risk.js`: `assessRisk()`, the smart-tap rules. Also runs in Node.
   - `js/bank.js`: `Bank` chooses `NessieBank` or `LocalBank`. Both return `{balance, transactions, bills, merchants, contacts, home, history}` and support `pay/transfer/payBill(…, mode)`.
   - `js/dashboard.js`: rendering, modals, `startPayment()` → `assessRisk` → `requestApproval()` / `approveTrusted()` → `commit()`.
-- `STYLE_GUIDE.md`: tokens and components. Banking-app look: gradient tiles, navy/blue, red only for accents and danger.
+    - Transfers of $200 or more go through `scamCheckFlow()` → `reviewTransfer()` → `scamWarning()` first.
+    - Warnings are read aloud with `speak()`, the browser's speechSynthesis.
+    - `confirmModal()` replaces `window.confirm`.
+  - `js/scamcheck.js`: Scam check for older adults.
+    - Defines `TRANSFER_REASONS`, `RED_FLAG_PHRASES`, `FRAUD_LINE` (fictional 555 number), `DEMO_VERIFY_CODE` (2468) and `TRUSTED_CONTACT`.
+    - `reviewTransfer()` is a **simulated** AI review. No API is called; the user said not to use the Gemini API for now.
+  - `js/config.js`: `loadConfig()`, which fetches `/api/config` once per page.
+  - `js/auth.js`: `Auth`, an optional Auth0 SPA login (SDK 2.27.0 from jsDelivr).
+    - The Management API audience and scopes are requested at login.
+    - The key is kept in `user_metadata.swamptag_key`.
+    - A `sessionStorage` flag marks a demo-account session.
+- `cad/swamptag_reader.scad`: parametric OpenSCAD enclosure (`part` = assembly/base/lid/diffuser/fit_test). Core OpenSCAD only. Guide in `cad/README.md`. OpenSCAD isn't installed here; the user exports the STLs.
+- `.claude/skills/redesign-existing-projects/`: UI audit skill (MIT, from Leonxlnx/taste-skill), used for the cleanup pass.
+- `STYLE_GUIDE.md`: tokens and components. Banking-app look: gradient tiles, navy/blue, red only for accents and danger. Geist font, square badges, tabular figures.
 
 ## Nessie facts (checked against the live API, 2026-10-16)
 - **Base URL:** `https://api.nessieisreal.com`. Plain HTTP refuses connections. Docs are at https://prod.nessieisreal.com/docs; the OpenAPI JSON is 403.
@@ -43,6 +56,11 @@ RC522 → R4: SDA→D10, SCK→D13, MOSI→D11, MISO→D12, RST→D9, GND→GND,
 ## Commands
 - Arduino CLI: `"$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"`, FQBN `arduino:renesas_uno:unor4wifi`. MFRC522 1.4.12 is installed; its "may be incompatible" warning is harmless.
 - `python server.py` → http://localhost:8000 (Chrome/Edge only, because of Web Serial).
+  - `python server.py 8001 --offline` ignores the Nessie key. Use it for tests that must not create Nessie transactions.
+- **Browser smoke test:**
+  1. Start headless Edge with `--remote-debugging-port`.
+  2. Drive it over the Chrome DevTools Protocol from a Node script (Node 24 has a global `WebSocket`).
+  3. Click through every flow on the `--offline` server.
 - `node --check website/js/*.js` checks syntax. `risk.js` can be `require`d in Node for quick rule tests.
 
 ## Conventions

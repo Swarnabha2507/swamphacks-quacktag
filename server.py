@@ -40,7 +40,8 @@ def load_env():
 load_env()
 NESSIE_BASE = os.environ.get("NESSIE_BASE", "https://api.nessieisreal.com").rstrip("/")
 API_KEY = os.environ.get("NESSIE_API_KEY", "").strip()
-if API_KEY == "paste-your-key-here" or (__name__ == "__main__" and "--offline" in sys.argv):
+OFFLINE = __name__ == "__main__" and "--offline" in sys.argv
+if API_KEY == "paste-your-key-here" or OFFLINE:
     API_KEY = ""
 
 
@@ -82,7 +83,8 @@ def auth0_config():
 def nessie_config():
     """What the dashboard needs to know to talk to Nessie, or why it can't."""
     if not API_KEY:
-        return {"live": False, "reason": "No Nessie API key yet (add it to .env)"}
+        reason = "Started with --offline" if OFFLINE else "No Nessie API key yet (add it to .env)"
+        return {"live": False, "reason": reason}
     ids = load_ids()
     if not ids:
         return {"live": False, "reason": "Nessie not seeded yet (run python tools/seed_nessie.py)"}

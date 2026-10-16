@@ -39,7 +39,9 @@ Run `python server.py` from the project root (in the background), then open http
 6. Pay in store → Chipotle → the "New merchant" reason shows → tap the fob → ✓ on the matrix, and the row reads "Verified with SwampTag".
 7. Simulate fraud → the reasons show distance and spend → tap the white card → ✗ on the matrix, Blocked row, Shield count +1.
 8. Send money and pay a bill → both need a tap. The bill disappears from Upcoming bills.
-9. Stop the server or unplug the Arduino → the offline badge and the T/X keys still work.
+9. Send $500 → choose "A family member says they are in trouble" → the warning is read aloud, the fraud line shows, and Cancel keeps the money. Demo code 2468 lets it continue to the tap.
+10. With Auth0 configured: sign in, link a key, then sign in from another browser profile. The key is already linked.
+11. Stop the server (or use `python server.py --offline`) or unplug the Arduino → the offline badge and the T/X keys still work.
 10. Reset demo clears the key, alerts and blocked rows. Nessie data needs `--fresh`.
 
 ## Troubleshooting
@@ -52,5 +54,9 @@ Run `python server.py` from the project root (in the background), then open http
 | Upload fails "port busy" | Close the browser tab or click Disconnect, then upload. |
 | Tag taps don't approve | The linked UID is different from the tag being tapped. Re-link the key. |
 | Badge says "Offline demo data" | Hover over it for the reason. Check `.env`, `nessie_ids.json`, and `curl localhost:8000/api/config`. |
+| Fob doesn't read through the printed lid | Hold the fob flat on TAP HERE. Lower `rc_gap` or `tap_t` in `cad/swamptag_reader.scad` and reprint the lid. |
+| Auth0 login loops back to the login page | Check that the Callback, Logout and Web Origin URLs include `http://localhost:8000` and `/login.html`. Also check the `AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` values in `.env`. |
+| Auth0 error "not authorized to access resource server" | APIs → Auth0 Management API → Application Access → give the SPA user access with `read:current_user` and `update:current_user_metadata`. |
+| Warning isn't read aloud | The browser has no voice installed, or the tab is muted. The text is still on screen. |
 | Nessie returns HTTP 400 | Field names changed. Probe with an extra field `{"zzz":1}`: the error lists required and rejected fields. |
 | Upload fails or the board isn't detected | Double-tap the R4's RESET button to enter bootloader mode, then upload again. |
