@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Summary – SwampTag</title>
+  <title>Home – SwampTag</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="app-body">
@@ -15,23 +15,23 @@
     <div class="container">
       <a class="logo" href="index.html" aria-label="SwampTag home">
         <svg viewBox="0 0 32 32" aria-hidden="true">
-          <rect width="32" height="32" rx="9" fill="#ffffff"/>
-          <circle cx="10" cy="16" r="2.6" fill="#0b2a6f"/>
-          <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#0b2a6f" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-          <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#fa4616" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          <rect width="32" height="32" rx="9" fill="#004977"/>
+          <circle cx="10" cy="16" r="2.6" fill="#fff"/>
+          <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#d03027" stroke-width="2.6" fill="none" stroke-linecap="round"/>
         </svg>
         <span>Swamp<em>Tag</em></span>
       </a>
       <nav aria-label="Account">
-        <a href="#" class="active">Summary</a>
+        <a href="#" class="active">Home</a>
         <a href="#activity">Activity</a>
-        <a href="#key-panel">SwampTag Key</a>
+        <a href="#bills">Bills</a>
         <a href="#security">Security</a>
       </nav>
       <div class="app-user">
         <div class="avatar">AG</div>
         <span class="name">Albert Gator</span>
-        <a class="btn btn-ghost btn-sm" href="index.html">Log out</a>
+        <a class="btn btn-ghost btn-sm" href="index.html">Sign out</a>
       </div>
     </div>
   </header>
@@ -39,34 +39,73 @@
   <main class="app-main">
     <div class="container">
       <div class="greeting">
-        <h1 id="greeting">Hello, Albert</h1>
-        <p class="muted">Every payment from your debit card needs a tap from your SwampTag key.</p>
+        <div>
+          <h1 id="greeting">Hello, Albert</h1>
+          <p class="muted">Payments from your debit card are checked by SwampTag.</p>
+        </div>
+        <span class="source-pill" id="source-pill" title="">Loading…</span>
       </div>
 
       <div class="app-grid">
         <!-- Left column -->
         <div class="stack">
-          <section class="card balance-card">
-            <div class="label">SwampTag Checking ••4821</div>
-            <div class="balance-amount" id="balance">$0.00</div>
-            <div class="balance-sub">Available balance</div>
+          <section class="tile tile-checking">
+            <div class="tile-row">
+              <div class="tile-name">SwampTag Checking<small>...4821</small></div>
+              <div>
+                <div class="tile-amount" id="balance">—</div>
+                <div class="tile-caption">Available balance</div>
+              </div>
+            </div>
+            <div class="tile-actions">
+              <button class="btn btn-on-dark btn-sm" id="send-btn">Send money</button>
+              <button class="btn btn-on-dark btn-sm" id="request-btn">Request</button>
+            </div>
+          </section>
 
-            <div class="quick-actions">
-              <button class="quick-action" id="send-btn">
-                <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></span>
+          <section class="tile tile-key">
+            <div class="tile-row">
+              <div class="tile-name">SwampTag Key<small id="key-tile-uid"></small></div>
+              <div>
+                <div class="tile-amount" id="key-tile-status" style="font-size:1.3rem">Not linked</div>
+                <div class="tile-caption" id="key-tile-caption">Card ...4821 is unprotected</div>
+              </div>
+            </div>
+            <div class="tile-actions">
+              <button class="btn btn-on-dark btn-sm" id="register-btn">Link a key</button>
+              <button class="btn btn-on-dark btn-sm" id="connect-btn">Connect reader</button>
+            </div>
+          </section>
+
+          <div class="row-pair">
+            <button class="row-button" id="pay-btn">
+              <svg class="rb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+              <span>Pay in store<small>Swipe card ...4821</small></span>
+            </button>
+            <button class="row-button danger" id="fraud-btn">
+              <svg class="rb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+              <span>Simulate fraud<small>A thief has your card + PIN</small></span>
+            </button>
+          </div>
+
+          <section class="tile tile-shield">
+            <div class="shield-body">
+              <div class="tile-name">Protected by SwampTag</div>
+              <div class="shield-amount" id="blocked-total">$0.00</div>
+              <div class="tile-caption" style="text-align:left">Fraud blocked</div>
+            </div>
+            <div class="shield-footer">
+              <button id="shield-send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
                 Send
               </button>
-              <button class="quick-action" id="request-btn">
-                <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></span>
-                Request
+              <button id="shield-pay">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                Shop
               </button>
-              <button class="quick-action" id="pay-btn">
-                <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
-                Pay in store
-              </button>
-              <button class="quick-action danger" id="fraud-btn">
-                <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
-                Simulate fraud
+              <button id="shield-bills">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 .7V2l-1 .7-3-2-3 2-3-2-3 2z"/><path d="M8 8h8"/><path d="M8 12h8"/></svg>
+                Bills
               </button>
             </div>
           </section>
@@ -74,7 +113,7 @@
           <section class="card" id="activity">
             <div class="card-title">
               <h2>Recent activity</h2>
-              <span class="muted" style="font-size:0.85rem">Checking ••4821</span>
+              <span class="muted" style="font-size:0.85rem">Checking ...4821</span>
             </div>
             <ul class="tx-list" id="tx-list"></ul>
           </section>
@@ -82,28 +121,33 @@
 
         <!-- Right column -->
         <div class="stack">
-          <section class="card">
-            <div class="card-title"><h2>Your card</h2></div>
-            <div class="debit-card">
-              <div class="row">
-                <span class="brand">SwampTag</span>
-                <span class="protect-badge" id="protect-badge">Unprotected</span>
-              </div>
-              <div class="chip-gfx"></div>
-              <div class="number">•••• •••• •••• 4821</div>
-              <div class="row">
-                <span class="holder">Albert Gator</span>
-                <span class="holder">Debit</span>
+          <section class="card" id="security">
+            <div class="card-title">
+              <h2>SwampTag Shield</h2>
+              <a href="#" id="reset-link" style="font-size:0.82rem">Reset demo</a>
+            </div>
+            <p class="muted" style="font-size:0.9rem">Fraud attempts blocked</p>
+            <div class="score-row">
+              <div class="score-number" id="score-number">0</div>
+              <div class="score-label">
+                <strong id="score-status">At risk</strong>
+                <span class="muted" style="font-size:0.85rem" id="score-sub">Link a key to protect your card</span>
               </div>
             </div>
+            <div class="score-bar risk" id="score-bar"><div style="width:25%"></div></div>
+            <ul class="alert-list" id="alert-list"></ul>
+          </section>
+
+          <section class="card" id="bills">
+            <div class="card-title">
+              <h2>Upcoming bills</h2>
+              <span class="chip chip-blue" style="margin:0">Needs a tap</span>
+            </div>
+            <div id="bill-list"></div>
           </section>
 
           <section class="card" id="key-panel">
-            <div class="card-title">
-              <h2>SwampTag Key</h2>
-              <span class="chip" id="key-chip"></span>
-            </div>
-
+            <div class="card-title"><h2>Key &amp; reader</h2></div>
             <div class="status-row">
               <span class="status-label">Reader</span>
               <span class="status-value"><span class="status-dot" id="reader-dot"></span><span id="reader-text">Not connected</span></span>
@@ -116,10 +160,11 @@
               <span class="status-label">Last tap</span>
               <span class="status-value mono" id="last-tap">—</span>
             </div>
-
+            <div class="status-row">
+              <span class="status-label">Bank data</span>
+              <span class="status-value" id="source-text">—</span>
+            </div>
             <div class="key-actions">
-              <button class="btn btn-navy btn-sm" id="connect-btn">Connect reader</button>
-              <button class="btn btn-primary btn-sm" id="register-btn">Link a key</button>
               <button class="btn btn-outline btn-sm hidden" id="unlink-btn">Unlink key</button>
             </div>
             <p class="muted hidden" id="serial-unsupported" style="font-size:0.82rem;margin-top:12px">
@@ -127,31 +172,33 @@
             </p>
 
             <label class="toggle">
-              <span><strong>Demo mode</strong><br><span class="muted">Show simulated tap buttons (shortcut keys: T and X)</span></span>
-              <span class="switch">
-                <input type="checkbox" id="demo-toggle">
-                <span class="slider"></span>
-              </span>
+              <span><strong>Smart taps</strong><br><span class="muted">Skip the tap for purchases of $25 or less at trusted merchants near home</span></span>
+              <span class="switch"><input type="checkbox" id="smart-toggle"><span class="slider"></span></span>
             </label>
-          </section>
-
-          <section class="card" id="security">
-            <div class="card-title">
-              <h2>Security Center</h2>
-              <a href="#" id="reset-link" style="font-size:0.82rem">Reset demo</a>
-            </div>
-            <ul class="alert-list" id="alert-list"></ul>
+            <label class="toggle">
+              <span><strong>Demo mode</strong><br><span class="muted">Show simulated tap buttons (keys T and X)</span></span>
+              <span class="switch"><input type="checkbox" id="demo-toggle"><span class="slider"></span></span>
+            </label>
           </section>
         </div>
       </div>
     </div>
   </main>
 
+  <nav class="tab-bar" aria-label="Sections">
+    <a href="#" class="active"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg>Home</a>
+    <a href="#activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>Activity</a>
+    <a href="#key-panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8.5 7.5a6 6 0 0 1 0 9"/><path d="M12 5a9.5 9.5 0 0 1 0 14"/><path d="M15.5 2.5a13 13 0 0 1 0 19"/></svg>Key</a>
+    <a href="#security"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Security</a>
+  </nav>
+
   <div id="modal-root"></div>
   <div class="toast-stack" id="toasts" aria-live="polite"></div>
 
   <script src="js/serial.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/risk.js"></script>
+  <script src="js/bank.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
 </html>

@@ -7,7 +7,7 @@
   <meta name="description" content="SwampTag adds a physical tap-to-approve key to your debit card, so skimmed cards and stolen PINs are useless to thieves.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -16,10 +16,10 @@
     <div class="container">
       <a class="logo" href="index.html" aria-label="SwampTag home">
         <svg viewBox="0 0 32 32" aria-hidden="true">
-          <rect width="32" height="32" rx="9" fill="#0b2a6f"/>
+          <rect width="32" height="32" rx="9" fill="#004977"/>
           <circle cx="10" cy="16" r="2.6" fill="#fff"/>
           <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-          <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#fa4616" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#d03027" stroke-width="2.6" fill="none" stroke-linecap="round"/>
         </svg>
         <span>Swamp<em>Tag</em></span>
       </a>
@@ -43,7 +43,7 @@
         <div>
           <div class="eyebrow"><span class="dot"></span> Two-factor protection for your debit card</div>
           <h1>Skimmers copy cards. Shoulder-surfers steal PINs. <span class="accent">Nobody can steal your tap.</span></h1>
-          <p class="lead">SwampTag pairs your debit card with a tiny RFID key. Every purchase needs a tap from that key, so a cloned card and a stolen PIN still can't spend your money.</p>
+          <p class="lead">SwampTag pairs your debit card with a tiny RFID key. Anything risky needs a tap from that key, so a cloned card and a stolen PIN still can't spend your money.</p>
           <div class="hero-ctas">
             <a class="btn btn-primary" href="login.html">Open the demo account</a>
             <a class="btn btn-outline" href="#how">See how it works</a>
@@ -60,7 +60,7 @@
             <div class="phone-merchant">
               <div class="avatar">PX</div> Publix Super Market
             </div>
-            <div class="phone-amount">$42.10</div>
+            <div class="phone-amount">$42.00</div>
             <div class="phone-sub">Card ending 4821 · Gainesville, FL</div>
             <div class="tap-ripple">
               <div class="core">
@@ -157,8 +157,8 @@
           </article>
           <article class="card feature-card">
             <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div>
-            <h3>Instant fraud alerts</h3>
-            <p>Blocked attempts appear in your Security Center the moment they happen.</p>
+            <h3>Smart taps</h3>
+            <p>Small purchases at places you already shop skip the tap. New merchants, far-away places and unusual amounts always ask.</p>
           </article>
           <article class="card feature-card">
             <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
@@ -190,8 +190,8 @@
             <p>A tap takes under a second, which is faster than unlocking your phone for a one-time code.</p>
           </article>
           <article class="card feature-card">
-            <h3>What hardware does it use?</h3>
-            <p>Our prototype uses an Arduino UNO R4 WiFi with an RC522 RFID reader that talks to the bank site over USB.</p>
+            <h3>How is it built?</h3>
+            <p>An Arduino UNO R4 WiFi with an RC522 RFID reader talks to the bank site over USB. Accounts, merchants, purchases, transfers and bills run on Capital One's Nessie API.</p>
           </article>
         </div>
       </div>
@@ -217,9 +217,9 @@
         <a class="logo" href="index.html">
           <svg viewBox="0 0 32 32" aria-hidden="true">
             <rect width="32" height="32" rx="9" fill="#ffffff"/>
-            <circle cx="10" cy="16" r="2.6" fill="#0b2a6f"/>
-            <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#0b2a6f" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-            <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#fa4616" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+            <circle cx="10" cy="16" r="2.6" fill="#004977"/>
+            <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#004977" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+            <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#d03027" stroke-width="2.6" fill="none" stroke-linecap="round"/>
           </svg>
           <span>Swamp<em>Tag</em></span>
         </a>

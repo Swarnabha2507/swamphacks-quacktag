@@ -19,17 +19,28 @@ description: Flash the SwampTag Arduino sketch, serve the SwampTag website, run 
 5. Stop the monitor before the website connects. The port is exclusive.
 
 ## Serve the site
-Run `python -m http.server 8000` from `website/` (in the background), then open http://localhost:8000 in Chrome or Edge.
+Run `python server.py` from the project root (in the background), then open http://localhost:8000 in Chrome or Edge.
+- `curl -s localhost:8000/api/config` should report `"live": true`.
+- If it reports `false`, the `reason` field says why: no key, not seeded, or Nessie unreachable.
+
+## Nessie
+- The key is in `.env` (gitignored). Never print or commit it.
+- `python tools/seed_nessie.py --fresh` creates a clean demo account. Run it before judging, so earlier test payments don't clutter the activity list.
+- Check data through the proxy: `curl -s localhost:8000/api/nessie/accounts/<accountId>/purchases`. The `accountId` is in `nessie_ids.json`.
+- API quirks (whole dollars, 404 for empty lists, P2P = transfer + deposit) are listed in CLAUDE.md.
+- Quick check of the risk rules: `node -e "const {assessRisk}=require('./website/js/risk.js'); ..."`
 
 ## Demo checklist
-1. Home page renders; links go to login → dashboard.
-2. Connect reader → status dot turns green.
+1. The home page renders, and its links go to login → dashboard. The badge reads **Live · Capital One Nessie**.
+2. Connect reader → the status dot turns green.
 3. Simulate fraud *before* linking a key → the charge goes through (the "today's world" contrast).
-4. Link a key → tap the fob → its UID shows and the card badge reads "SwampTag on".
-5. Pay in store → tap the fob → ✓ on the matrix, Approved row "Verified with SwampTag".
-6. Simulate fraud → tap the white card → ✗ on the matrix, Blocked row, Security Center alert.
-7. Unplug the Arduino → the demo buttons and T/X keys still work.
-8. Reset demo returns to the seeded state.
+4. Link a key → tap the fob → its UID shows and the key tile reads "Protected".
+5. Pay in store → Starbucks $6 → approved with **no tap** (Trusted chip).
+6. Pay in store → Chipotle → the "New merchant" reason shows → tap the fob → ✓ on the matrix, and the row reads "Verified with SwampTag".
+7. Simulate fraud → the reasons show distance and spend → tap the white card → ✗ on the matrix, Blocked row, Shield count +1.
+8. Send money and pay a bill → both need a tap. The bill disappears from Upcoming bills.
+9. Stop the server or unplug the Arduino → the offline badge and the T/X keys still work.
+10. Reset demo clears the key, alerts and blocked rows. Nessie data needs `--fresh`.
 
 ## Troubleshooting
 | Symptom | Fix |
@@ -40,4 +51,6 @@ Run `python -m http.server 8000` from `website/` (in the background), then open 
 | Connect button disabled | Not Chrome or Edge, or the page isn't on localhost/https. |
 | Upload fails "port busy" | Close the browser tab or click Disconnect, then upload. |
 | Tag taps don't approve | The linked UID is different from the tag being tapped. Re-link the key. |
+| Badge says "Offline demo data" | Hover over it for the reason. Check `.env`, `nessie_ids.json`, and `curl localhost:8000/api/config`. |
+| Nessie returns HTTP 400 | Field names changed. Probe with an extra field `{"zzz":1}`: the error lists required and rejected fields. |
 | Upload fails or the board isn't detected | Double-tap the R4's RESET button to enter bootloader mode, then upload again. |
