@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in – SwampTag</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="auth-page">
+
+  <div class="auth-wrap">
+    <div class="card auth-card">
+      <a class="logo" href="index.html" aria-label="SwampTag home">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="9" fill="#0b2a6f"/>
+          <circle cx="10" cy="16" r="2.6" fill="#fff"/>
+          <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#fa4616" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span>Swamp<em>Tag</em></span>
+      </a>
+
+      <h1>Welcome back</h1>
+      <p class="muted">Log in to manage your money and your SwampTag key.</p>
+
+      <div class="demo-hint">Demo account: the details are already filled in, so just press <strong>Log in</strong>.</div>
+
+      <form id="login-form" style="margin-top:18px">
+        <div class="field">
+          <label for="email">Email</label>
+          <input class="input" id="email" type="email" value="albert.gator@ufl.edu" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input class="input" id="password" type="password" value="gochomp2026" autocomplete="current-password" required>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Log in</button>
+      </form>
+
+      <p class="muted" style="margin-top:20px;font-size:0.88rem;text-align:center">
+        New to SwampTag? <a href="login.html">Create an account</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      window.location.href = 'dashboard.html';
+    });
+  </script>
+</body>
+</html>

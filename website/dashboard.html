@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Summary – SwampTag</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="app-body">
+
+  <header class="app-nav">
+    <div class="container">
+      <a class="logo" href="index.html" aria-label="SwampTag home">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="9" fill="#ffffff"/>
+          <circle cx="10" cy="16" r="2.6" fill="#0b2a6f"/>
+          <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#0b2a6f" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#fa4616" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span>Swamp<em>Tag</em></span>
+      </a>
+      <nav aria-label="Account">
+        <a href="#" class="active">Summary</a>
+        <a href="#activity">Activity</a>
+        <a href="#key-panel">SwampTag Key</a>
+        <a href="#security">Security</a>
+      </nav>
+      <div class="app-user">
+        <div class="avatar">AG</div>
+        <span class="name">Albert Gator</span>
+        <a class="btn btn-ghost btn-sm" href="index.html">Log out</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="container">
+      <div class="greeting">
+        <h1 id="greeting">Hello, Albert</h1>
+        <p class="muted">Every payment from your debit card needs a tap from your SwampTag key.</p>
+      </div>
+
+      <div class="app-grid">
+        <!-- Left column -->
+        <div class="stack">
+          <section class="card balance-card">
+            <div class="label">SwampTag Checking ••4821</div>
+            <div class="balance-amount" id="balance">$0.00</div>
+            <div class="balance-sub">Available balance</div>
+
+            <div class="quick-actions">
+              <button class="quick-action" id="send-btn">
+                <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></span>
+                Send
+              </button>
+              <button class="quick-action" id="request-btn">
+                <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></span>
+                Request
+              </button>
+              <button class="quick-action" id="pay-btn">
+                <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
+                Pay in store
+              </button>
+              <button class="quick-action danger" id="fraud-btn">
+                <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
+                Simulate fraud
+              </button>
+            </div>
+          </section>
+
+          <section class="card" id="activity">
+            <div class="card-title">
+              <h2>Recent activity</h2>
+              <span class="muted" style="font-size:0.85rem">Checking ••4821</span>
+            </div>
+            <ul class="tx-list" id="tx-list"></ul>
+          </section>
+        </div>
+
+        <!-- Right column -->
+        <div class="stack">
+          <section class="card">
+            <div class="card-title"><h2>Your card</h2></div>
+            <div class="debit-card">
+              <div class="row">
+                <span class="brand">SwampTag</span>
+                <span class="protect-badge" id="protect-badge">Unprotected</span>
+              </div>
+              <div class="chip-gfx"></div>
+              <div class="number">•••• •••• •••• 4821</div>
+              <div class="row">
+                <span class="holder">Albert Gator</span>
+                <span class="holder">Debit</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" id="key-panel">
+            <div class="card-title">
+              <h2>SwampTag Key</h2>
+              <span class="chip" id="key-chip"></span>
+            </div>
+
+            <div class="status-row">
+              <span class="status-label">Reader</span>
+              <span class="status-value"><span class="status-dot" id="reader-dot"></span><span id="reader-text">Not connected</span></span>
+            </div>
+            <div class="status-row">
+              <span class="status-label">Linked key</span>
+              <span class="status-value mono" id="key-uid">None</span>
+            </div>
+            <div class="status-row">
+              <span class="status-label">Last tap</span>
+              <span class="status-value mono" id="last-tap">—</span>
+            </div>
+
+            <div class="key-actions">
+              <button class="btn btn-navy btn-sm" id="connect-btn">Connect reader</button>
+              <button class="btn btn-primary btn-sm" id="register-btn">Link a key</button>
+              <button class="btn btn-outline btn-sm hidden" id="unlink-btn">Unlink key</button>
+            </div>
+            <p class="muted hidden" id="serial-unsupported" style="font-size:0.82rem;margin-top:12px">
+              Your browser can't talk to the reader. Open this page in Chrome or Edge, or use Demo mode.
+            </p>
+
+            <label class="toggle">
+              <span><strong>Demo mode</strong><br><span class="muted">Show simulated tap buttons (shortcut keys: T and X)</span></span>
+              <span class="switch">
+                <input type="checkbox" id="demo-toggle">
+                <span class="slider"></span>
+              </span>
+            </label>
+          </section>
+
+          <section class="card" id="security">
+            <div class="card-title">
+              <h2>Security Center</h2>
+              <a href="#" id="reset-link" style="font-size:0.82rem">Reset demo</a>
+            </div>
+            <ul class="alert-list" id="alert-list"></ul>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="modal-root"></div>
+  <div class="toast-stack" id="toasts" aria-live="polite"></div>
+
+  <script src="js/serial.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
