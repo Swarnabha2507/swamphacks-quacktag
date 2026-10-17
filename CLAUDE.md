@@ -4,7 +4,12 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
 - **Tracks:** Hardware & Physical Computing, First Timers, Capital One – Best Use of Nessie, Best Use of Auth0.
 - **User:** a first-time hackathon participant who wants the hardware kept as simple as possible.
 - **Current hardware (since 2026-10-17):**
-  - **The reader is the user's Pixel 6a.** It runs `website/terminal.html` (Web NFC). (The 3D-printed cases were dropped on 2026-10-17.)
+  - **The reader is the user's Pixel 6a.** It runs `website/terminal.html` (Web NFC). The phone needs no case.
+  - **Key dock case:** `cad/swamptag_dock.scad`, with STLs in `cad/stl/` and the guide in `cad/README.md`.
+    - Size: 66.6 × 70.8 × 26.7 mm.
+    - The RC522 hangs upside down under the lid on 4 snap corners, with the fob pocket over its antenna. The Feather lies on floor pegs, with USB-C out the right wall.
+    - A white lid has a hidden glow strip over the Feather.
+    - OpenSCAD is installed (`C:\Program Files\OpenSCAD\openscad.com`). Render PNGs with `--camera` to check changes.
   - The Arduino + RC522 is now attached to the key and rewrites it at intervals. That **key device is a teammate's job**: don't build it, only agree the format (`docs/KEY_FORMAT.md`).
 
 ## Layout
@@ -70,6 +75,10 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
 - `website/pump.html` + `js/pump.js`: the **gas-station checkout** on the phone.
   - Steps: items (fuel $20/$40/$60 or gallons at $3, store items) → Charge → card → PIN pad (dots only) → key → receipt or decline.
   - One `NDEFReader.scan()` is started by the Start tap, with NFC first. Demo buttons appear without NFC. ⚙ setup shows the raw reads and pairs card + key by ID.
+  - **Its own look:** `css/pump.css` (Plus Jakarta Sans), not `styles.css`.
+    - The approved screen is PayPal-style: blue circle reveal, check drawn in, rings, confetti, amount counting up, chime (WebAudio, unlocked by the Start tap) plus vibration, then a receipt sheet slides up.
+    - Animations replay only when the step changes (`shownStep`).
+    - Bump the `?v=` on its CSS/JS links when they change, because the phone's Chrome caches them.
 - `terminal.py` → `PumpAuthorizer` (shares the `KeyChecker`) checks: `SC1` card (or `pairings.json` in ID-only mode) → `CARD_PIN` (3 tries) → the key's `ST1` code is fresh, and the key is the card's paired key.
 - `server.py`: `/api/pump/card`, `/api/pump/authorize`, `/api/pump/pair`.
   - `settle_pump_sale()` runs after the card, PIN and key pass.
