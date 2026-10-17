@@ -77,3 +77,10 @@ pio device monitor          # watch it
 | `ERROR:unsupported tag type` | Use the kit's fob/card (MIFARE Classic 1K) or NTAG213/215 tags. |
 | Writes work but the phone sees no data | The phone can't read MIFARE Classic data. Use the pump's ⚙ setup to pair by ID, or switch to NTAG215 tags. |
 | Pump says "Key code doesn't match" | `KEY_SECRET` in `secrets.h` and `.env` differ. Fix it, rebuild, reflash, and restart `server.py`. |
+
+## Only the key gets written
+The key firmware rewrites **only the key fob**. A tag placed on the reader is checked once:
+- **It holds a debit-card record (`SC1:`):** left untouched, with orange blinks and `SKIP <uid>: this is the debit card` in the log.
+- **`KEY_UID` is set in `include/secrets.h` and this isn't that UID:** also left untouched. Set it to your fob's UID (the hex after `PLACED` in the log) so even a blank or damaged card can never become a key.
+
+If a card was already overwritten, restore it: flash `env:card`, tap the fob, then the card. Then flash `env:key` again.

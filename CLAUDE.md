@@ -63,7 +63,7 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
     - The key is kept in `user_metadata.quacktag_key`.
     - A `sessionStorage` flag marks a demo-account session.
 - `firmware/quacktag_key/`: **PlatformIO** project for the Adafruit Feather RP2040 + RC522 (Philhower core via maxgerhardt's platform).
-  - `env:key` rewrites the fob with `ST1` every 15 s while it rests on the reader. `env:card` (`-D CARD_WRITER`) writes the fake debit card (`SC1`).
+  - `env:key` rewrites the fob with `ST1` every 15 s while it rests on the reader. **It never writes the debit card:** it skips any tag holding an `SC1` record, and with `KEY_UID` set in `secrets.h` (the fob's UID, `41C3D76E`) it only writes that one fob. Skipped tags get orange blinks and a `SKIP` log line. (The card was overwritten once by being left on the reader.) `env:card` (`-D CARD_WRITER`) writes the fake debit card (`SC1`).
   - `src/ndef_tag.cpp`: NDEF Text read/write on NTAG/Ultralight and **MIFARE Classic 1K** (NFC Forum MAD format; key B stays FF…FF; MAD CRC-8 checked against the NFC Forum example).
   - `include/secrets.h` is gitignored and holds the same `KEY_SECRET` as `.env`.
   - **Build:** `%USERPROFILE%\.platformio\penv\Scripts\pio.exe run -d firmware/quacktag_key -e key -e card`.
