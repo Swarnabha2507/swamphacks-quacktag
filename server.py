@@ -19,7 +19,7 @@ import time
 from collections import deque
 import urllib.error
 import urllib.request
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
@@ -66,7 +66,7 @@ PUMP = PumpAuthorizer(CHECKER, os.environ.get("CARD_PIN", "1234").strip() or "12
 GAS_MERCHANT = {"name": "Swamp Gas & Go", "initials": "SG", "place": "Gainesville, FL", "category": "Gas",
                 "lat": 29.6516, "lng": -82.3248, "role": "pump",
                 "address": {"street_number": "1300", "street_name": "SW 13th St", "city": "Gainesville", "state": "FL", "zip": "32608"}}
-QUIET_PATHS = ("/api/terminal/state", "/api/terminal/events", "/api/nessie-log")  # polled several times a second
+QUIET_PATHS = ("/api/terminal/state", "/api/terminal/events", "/api/nessie-log", "/api/sale-times")  # polled several times a second
 
 
 # Recent Nessie API calls, shown live on the dashboard ("Capital One Nessie" panel).
@@ -185,6 +185,17 @@ def gas_merchant(create=False):
     return gas_merchant()
 
 
+def remember_sale_time(purchase_id):
+    """Nessie only stores a date, so keep the exact time of each pump sale. The dashboard uses it
+    to put the sale at the top of Recent activity instead of at "noon"."""
+    state = load_local_state()
+    times = state.setdefault("saleTimes", {})
+    times[purchase_id] = datetime.now(timezone.utc).isoformat()
+    for old in list(times)[:-50]:  # keep the last 50
+        del times[old]
+    LOCAL_STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+
 def nessie_list(path):
     """GET a Nessie list. Nessie answers 404 for an empty list."""
     status, data = nessie_request("GET", path, source="pump")
@@ -229,6 +240,7 @@ def settle_pump_sale(result, total):
             raise OSError(f"Nessie refused the purchase (HTTP {status})")
         result["nessie"] = {"recorded": True, "purchaseId": purchase_id, "merchant": merchant["name"],
                             "balanceAfter": balance - int(round(total))}
+        remember_sale_time(purchase_id)
     except OSError as err:
         print(f"Pump sale not recorded in Nessie: {err}")
         result["nessie"] = {"recorded": False, "note": "Nessie didn't answer, so the sale wasn't recorded"}
@@ -396,6 +408,8 @@ class Handler(SimpleHTTPRequestHandler):
         parts = urlsplit(self.path)
         if parts.path == "/api/config" and method == "GET":
             return self.send_json(200, build_config())
+        if parts.path == "/api/sale-times" and method == "GET":
+            return self.send_json(200, load_local_state().get("saleTimes", {}))
         if parts.path == "/api/nessie-log" and method == "GET":
             with NESSIE_LOG_LOCK:
                 return self.send_json(200, {"calls": list(NESSIE_LOG)})
