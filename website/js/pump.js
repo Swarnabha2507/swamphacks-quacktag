@@ -6,6 +6,7 @@
 
 const SAME_TAG_IGNORE_MS = 2500;
 const FUEL_PRICE = 3; // $ per gallon (whole dollars, because Nessie stores whole dollars)
+const MERCHANT = 'Swamp Gas & Go';
 
 const FUEL = [
   { id: 'fuel20', label: 'Regular · $20', detail: '≈ 6.7 gal', price: 20 },
@@ -21,6 +22,7 @@ const STORE = [
 
 const $ = (sel) => document.querySelector(sel);
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const state = {
   step: 'shop',          // shop | card | pin | key | busy | result
@@ -31,13 +33,14 @@ const state = {
   cardInfo: null,        // { last4, holder, mode }
   pin: '',
   result: null,
-  notice: '',
   lastRead: null,        // for the setup screen: { serialNumber, texts, at }
   pairing: null,         // setup: null | 'card' | { card }
 };
 let lastTag = { serial: '', at: 0 };
-let noticeTimer = null;
+let toastTimer = null;
 let nfcOn = false;
+let shownStep = null;    // which screen is on display, so re-renders only animate on a real change
+let audio = null;        // AudioContext, created on the Start tap (browsers need a tap for sound)
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -51,6 +54,31 @@ function speak(text) {
     u.rate = 0.95;
     speechSynthesis.speak(u);
   } catch { /* no voice */ }
+}
+
+// Two quick rising notes, like a payment app's "sent" sound.
+function chime() {
+  if (!audio) return;
+  try {
+    audio.resume();
+    const t = audio.currentTime;
+    [[880, 0], [1320, 0.11]].forEach(([freq, at]) => {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t + at);
+      gain.gain.exponentialRampToValueAtTime(0.25, t + at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.45);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(t + at);
+      osc.stop(t + at + 0.5);
+    });
+  } catch { /* no sound */ }
+}
+
+function buzz(pattern) {
+  try { navigator.vibrate?.(pattern); } catch { /* no vibration */ }
 }
 
 // ---------- Cart ----------
@@ -71,35 +99,65 @@ function cartLines() {
 
 const cartTotal = () => cartLines().reduce((sum, l) => sum + l.price, 0);
 
-// ---------- Screens ----------
+// ---------- Artwork ----------
 
-const TAP_ICON = `
-  <div class="tap-ripple"><div class="core">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
-      <path d="M8.5 7.5a6 6 0 0 1 0 9"/><path d="M12 5a9.5 9.5 0 0 1 0 14"/><path d="M15.5 2.5a13 13 0 0 1 0 19"/>
-      <circle cx="5" cy="12" r="1.5" fill="#fff" stroke="none"/>
-    </svg>
-  </div></div>`;
+const NFC_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8.5 7.5a6 6 0 0 1 0 9"/><path d="M12 5a9.5 9.5 0 0 1 0 14"/><path d="M15.5 2.5a13 13 0 0 1 0 19"/></svg>`;
+const SHIELD_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`;
+const BANK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18L12 4z"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/></svg>`;
+
+function cardArt(last4) {
+  return `
+    <div class="tap-stage" aria-hidden="true">
+      <div class="waves"><i></i><i></i><i></i></div>
+      <div class="art-card">
+        <span class="ac-brand">SwampTag</span>
+        <span class="ac-nfc">${NFC_ICON}</span>
+        <span class="ac-chip"></span>
+        <span class="ac-num">•••• ${last4 ? escapeHtml(last4) : '••••'}</span>
+        <span class="ac-debit">Debit</span>
+      </div>
+    </div>`;
+}
+
+function fobArt() {
+  return `
+    <div class="tap-stage" aria-hidden="true">
+      <div class="waves"><i></i><i></i><i></i></div>
+      <div class="art-fob"><span style="color:#fff">${NFC_ICON}</span></div>
+    </div>`;
+}
+
+function cardChip(sub) {
+  return `<div class="pump-card-chip"><span>SwampTag Debit •••• ${escapeHtml(state.cardInfo.last4)}<small>${escapeHtml(sub)}</small></span></div>`;
+}
 
 function demoButtons(buttons) {
   if (nfcOn) return '';
-  return `<div class="pump-demo"><span class="demo-label">No NFC here: demo buttons</span>${buttons
-    .map(([sim, label]) => `<button class="btn btn-outline btn-sm" data-sim="${sim}">${label}</button>`).join('')}</div>`;
+  return `<div class="pump-demo"><span class="demo-label">No NFC here · demo buttons</span>${buttons
+    .map(([sim, label]) => `<button class="pill" data-sim="${sim}">${label}</button>`).join('')}</div>`;
 }
+
+const cancelButton = '<button class="pill pill-ghost" data-act="cancel">Cancel sale</button>';
+
+// ---------- Screens ----------
 
 function shopScreen() {
   const total = cartTotal();
   return `
+    <div class="hello">
+      <h1>What are we<br>filling up today?</h1>
+      <p>Pick fuel and snacks, then pay with your card and SwampTag key.</p>
+    </div>
     <section class="pump-section">
-      <h2>Fuel</h2>
+      <h2>Fuel · Regular</h2>
       <div class="pump-fuel">
         ${FUEL.map((f) => `
-          <button class="pump-tile ${state.fuel === f.id && !state.gallons ? 'on' : ''}" data-fuel="${f.id}">
-            <strong>${f.label}</strong><span>${f.detail}</span>
+          <button class="pump-tile ${state.fuel === f.id && !state.gallons ? 'on' : ''}" data-fuel="${f.id}" aria-pressed="${state.fuel === f.id && !state.gallons}">
+            <strong class="num">$${f.price}</strong><span>${f.detail}</span>
           </button>`).join('')}
       </div>
       <div class="pump-gallons">
-        <span>Or choose gallons <small>(${money.format(FUEL_PRICE)}/gal)</small></span>
+        <span>Exact gallons<small>${money.format(FUEL_PRICE)} per gallon</small></span>
         <div class="stepper">
           <button data-gal="-1" aria-label="One gallon less">−</button>
           <b class="num">${state.gallons}</b>
@@ -108,14 +166,14 @@ function shopScreen() {
       </div>
     </section>
     <section class="pump-section">
-      <h2>Store</h2>
+      <h2>From the store</h2>
       <div class="pump-store">
         ${STORE.map((it) => {
           const n = state.qty[it.id] || 0;
           return `
             <div class="pump-item ${n ? 'on' : ''}">
               <span class="pump-icon" aria-hidden="true">${it.icon}</span>
-              <span class="grow"><strong>${it.label}</strong><small>${money.format(it.price)}</small></span>
+              <span class="grow"><strong>${it.label}</strong><small class="num">${money.format(it.price)}</small></span>
               <div class="stepper">
                 <button data-item="${it.id}" data-d="-1" aria-label="Remove one ${it.label}">−</button>
                 <b class="num">${n}</b>
@@ -126,96 +184,159 @@ function shopScreen() {
       </div>
     </section>
     <div class="pump-cart">
-      <div><span class="muted small">Total</span><div class="pump-total num">${money.format(total)}</div></div>
-      <button class="btn btn-primary" id="charge-btn" ${total ? '' : 'disabled'}>Charge ${money.format(total)}</button>
+      <div><div class="label">Total</div><div class="pump-total num">${money.format(total)}</div></div>
+      <button class="pill pill-blue" id="charge-btn" ${total ? '' : 'disabled'}>Pay ${money.format(total)}</button>
     </div>`;
 }
 
 function cardScreen() {
   return `
     <div class="pump-center">
+      <span class="pump-amount-label">Amount due</span>
       <p class="pump-amount num">${money.format(cartTotal())}</p>
-      ${TAP_ICON}
+      ${cardArt()}
       <h1 class="pump-title">Tap your card</h1>
-      <p class="muted">Hold the SwampTag debit card flat on the back of the phone, near the camera.</p>
+      <p class="pump-sub">Hold your SwampTag debit card flat against the back of the phone, near the camera.</p>
       ${demoButtons([['card', 'Tap demo card']])}
-      <button class="btn btn-ghost btn-sm" data-act="cancel">Cancel sale</button>
+      ${cancelButton}
     </div>`;
 }
 
 function pinScreen() {
-  const dots = [0, 1, 2, 3].map((i) => `<span class="${i < state.pin.length ? 'on' : ''}"></span>`).join('');
+  const dots = [0, 1, 2, 3].map((i) => `<span class="${i < state.pin.length ? 'on' : ''}${i === state.pin.length - 1 ? ' new' : ''}"></span>`).join('');
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back'];
   return `
     <div class="pump-center">
-      <div class="pump-card-chip">SwampTag Debit •••• ${escapeHtml(state.cardInfo.last4)}<small>${escapeHtml(state.cardInfo.holder)}</small></div>
-      <h1 class="pump-title">Enter your PIN</h1>
+      ${cardChip(state.cardInfo.holder)}
+      <h1 class="pump-title" style="margin-top:14px">Enter your PIN</h1>
       <div class="pin-dots" aria-label="${state.pin.length} of 4 digits entered">${dots}</div>
       <div class="pin-pad">
-        ${keys.map((k) => `<button data-pin="${k}" ${k === 'clear' || k === 'back' ? 'class="muted-key"' : ''}>${k === 'clear' ? 'Clear' : k === 'back' ? '⌫' : k}</button>`).join('')}
+        ${keys.map((k) => `<button data-pin="${k}" ${k === 'clear' || k === 'back' ? 'class="muted-key"' : ''} aria-label="${k === 'back' ? 'Delete' : k}">${k === 'clear' ? 'Clear' : k === 'back' ? '⌫' : k}</button>`).join('')}
       </div>
-      <button class="btn btn-primary btn-block" id="pin-ok" ${state.pin.length === 4 ? '' : 'disabled'}>OK</button>
-      <button class="btn btn-ghost btn-sm" data-act="cancel">Cancel sale</button>
+      <button class="pill pill-blue pill-block" id="pin-ok" ${state.pin.length === 4 ? '' : 'disabled'}>Continue</button>
+      ${cancelButton}
     </div>`;
 }
 
 function keyScreen() {
   return `
     <div class="pump-center">
-      <div class="pump-card-chip">SwampTag Debit •••• ${escapeHtml(state.cardInfo.last4)}<small>PIN entered</small></div>
-      ${TAP_ICON}
+      ${cardChip('PIN entered')}
+      ${fobArt()}
       <h1 class="pump-title">Scan your SwampTag key</h1>
-      <p class="muted">Hold your key fob on the back of the phone. It proves the card's real owner is here.</p>
+      <p class="pump-sub">Hold your key fob against the back of the phone. It proves the card's real owner is here.</p>
       ${demoButtons([['good', 'Right key'], ['copied', 'Copied key'], ['wrong', 'Wrong key']])}
-      <button class="btn btn-ghost btn-sm" data-act="cancel">Cancel sale</button>
+      ${cancelButton}
     </div>`;
 }
 
 function busyScreen() {
-  return `<div class="pump-center">${TAP_ICON}<h1 class="pump-title">Checking your key…</h1></div>`;
+  return `
+    <div class="pump-center">
+      <div class="spinner" role="progressbar" aria-label="Checking"></div>
+      <h1 class="pump-title">Checking your key…</h1>
+      <div class="check-list"><span>Card read</span><span>PIN entered</span></div>
+    </div>`;
 }
 
 // Proof that the sale went to the bank: Capital One's Nessie API (see server.py settle_pump_sale).
 function nessieLine(n) {
   if (!n) return '';
-  if (!n.recorded) return `<div class="receipt-nessie muted small">${escapeHtml(n.note || '')}</div>`;
-  return `<div class="receipt-nessie small">Recorded in Capital One Nessie · purchase ${escapeHtml(n.purchaseId.slice(0, 8))}…<br>New balance <b class="num">${money.format(n.balanceAfter)}</b></div>`;
+  if (!n.recorded) return `<div class="receipt-nessie off">${BANK_ICON}<span>${escapeHtml(n.note || '')}</span></div>`;
+  return `<div class="receipt-nessie">${BANK_ICON}<span>Recorded in Capital One Nessie · purchase ${escapeHtml(n.purchaseId.slice(0, 8))}…<br>New balance <b class="num">${money.format(n.balanceAfter)}</b></span></div>`;
+}
+
+// Paper-like confetti that bursts from the check mark.
+function confetti(count = 34) {
+  const colors = ['#ffffff', '#ffd84d', '#7fe0b8', '#a8ccff', '#ff9db5'];
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
+    const dist = 90 + Math.random() * 120;
+    html += `<i style="--x:${Math.round(Math.cos(angle) * dist)}px;--y:${Math.round(Math.sin(angle) * dist - 40)}px;--r:${Math.round(Math.random() * 720 - 360)}deg;--s:${6 + Math.round(Math.random() * 6)}px;--c:${colors[i % colors.length]};--d:${(0.55 + Math.random() * 0.15).toFixed(2)}s"></i>`;
+  }
+  return html;
+}
+
+function approvedScreen(r) {
+  const total = cartTotal();
+  return `
+    <div class="paid" role="status">
+      <div class="paid-hero">
+        <div class="paid-check" aria-hidden="true">
+          <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+          <span class="paid-burst">${reducedMotion() ? '' : confetti()}</span>
+          <span class="disc"></span>
+          <svg viewBox="0 0 52 52"><path class="tick" d="M14 27.5 22.5 36 39 18"/></svg>
+        </div>
+        <h1 class="pump-title">Approved</h1>
+        <p class="paid-amount num" data-total="${total}">${money.format(total)}</p>
+        <p class="paid-to">paid to <b>${MERCHANT}</b></p>
+        <span class="paid-verified">${SHIELD_ICON}${r.verified ? 'Verified with your SwampTag key' : 'Key matched (ID only)'}</span>
+      </div>
+      <div class="paid-sheet">
+        <div class="grabber"></div>
+        <div class="receipt">
+          ${cartLines().map((l) => `<div><span>${escapeHtml(l.label)}</span><span class="num">${money.format(l.price)}</span></div>`).join('')}
+          <div class="receipt-total"><span>Total</span><span class="num">${money.format(total)}</span></div>
+        </div>
+        <div class="paid-meta"><div class="pump-card-chip"><span>SwampTag Debit •••• ${escapeHtml(r.card.last4)}<small>${escapeHtml(r.card.holder || '')}</small></span></div></div>
+        ${nessieLine(r.nessie)}
+        <p class="paid-hint">Put your key back on its dock so it gets a fresh code.</p>
+        <button class="pill pill-blue pill-block" data-act="new">Done</button>
+      </div>
+    </div>`;
+}
+
+function declinedScreen(r) {
+  const retry = r.step === 'key' ? 'Try the key again' : r.step === 'pin' && !/locked/i.test(r.reason) ? 'Re-enter PIN' : '';
+  return `
+    <div class="declined" role="alert">
+      <div class="dc-icon" aria-hidden="true"><svg viewBox="0 0 52 52"><path d="M17 17l18 18"/><path d="M35 17 17 35"/></svg></div>
+      <h1 class="pump-title bad">Declined</h1>
+      <p class="pump-reason">${escapeHtml(r.reason)}</p>
+      <p class="muted">No money was taken.</p>
+      <div class="actions">
+        ${retry ? `<button class="pill pill-blue pill-block" data-act="retry">${retry}</button>` : ''}
+        <button class="pill pill-ghost" data-act="new">Cancel sale</button>
+      </div>
+    </div>`;
 }
 
 function resultScreen() {
-  const r = state.result;
-  if (r.approved) {
-    return `
-      <div class="pump-center">
-        <div class="term-result good">✓</div>
-        <h1 class="pump-title good">Approved</h1>
-        <div class="receipt">
-          ${cartLines().map((l) => `<div><span>${escapeHtml(l.label)}</span><span class="num">${money.format(l.price)}</span></div>`).join('')}
-          <div class="receipt-total"><span>Total</span><span class="num">${money.format(cartTotal())}</span></div>
-          <div class="muted small">SwampTag Debit •••• ${escapeHtml(r.card.last4)} · ${r.verified ? 'Verified with SwampTag key' : 'Key matched (ID only)'}</div>
-          ${nessieLine(r.nessie)}
-        </div>
-        <p class="muted small">Put your key back on its dock so it gets a fresh code.</p>
-        <button class="btn btn-primary btn-block" data-act="new">New sale</button>
-      </div>`;
-  }
-  const retry = r.step === 'key' ? 'Try the key again' : r.step === 'pin' && !/locked/i.test(r.reason) ? 'Re-enter PIN' : '';
-  return `
-    <div class="pump-center">
-      <div class="term-result bad">✕</div>
-      <h1 class="pump-title bad">Declined</h1>
-      <p class="pump-reason">${escapeHtml(r.reason)}</p>
-      <p class="muted small">No money was taken.</p>
-      ${retry ? `<button class="btn btn-primary btn-block" data-act="retry">${retry}</button>` : ''}
-      <button class="btn btn-ghost btn-block" data-act="new">Cancel sale</button>
-    </div>`;
+  return state.result.approved ? approvedScreen(state.result) : declinedScreen(state.result);
+}
+
+// Counts the big amount up from $0, PayPal-style.
+function countUp(el) {
+  const target = Number(el.dataset.total) || 0;
+  if (reducedMotion()) return;
+  const start = performance.now() + 850;
+  const dur = 900;
+  el.textContent = money.format(0);
+  const tick = (now) => {
+    const t = Math.min(1, Math.max(0, (now - start) / dur));
+    el.textContent = money.format(target * (1 - Math.pow(1 - t, 3)));
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 function render() {
   const screens = { shop: shopScreen, card: cardScreen, pin: pinScreen, key: keyScreen, busy: busyScreen, result: resultScreen };
-  let html = screens[state.step]();
-  if (state.notice) html += `<p class="term-notice">${escapeHtml(state.notice)}</p>`;
-  $('#screen').innerHTML = html;
+  const el = $('#screen');
+  const changed = shownStep !== state.step;
+  shownStep = state.step;
+  // Entrance animation only when the screen changes, not on every +/− tap.
+  el.innerHTML = `<div class="view${changed && state.step !== 'result' ? ' screen-in' : ''}">${screens[state.step]()}</div>`;
+  if (changed) window.scrollTo(0, 0);
+  if (changed && state.step === 'result' && state.result.approved) {
+    countUp(el.querySelector('.paid-amount'));
+    setTimeout(chime, 550);
+    buzz([25, 70, 45]);
+  } else if (changed && state.step === 'result') {
+    buzz([90, 60, 90]);
+  }
   const order = ['shop', 'card', 'pin', 'key'];
   const at = state.step === 'busy' || state.step === 'result' ? 4 : order.indexOf(state.step);
   document.querySelectorAll('#steps li').forEach((li, i) => {
@@ -224,10 +345,14 @@ function render() {
 }
 
 function flash(message) {
-  state.notice = message;
-  clearTimeout(noticeTimer);
-  noticeTimer = setTimeout(() => { state.notice = ''; render(); }, 3500);
-  render();
+  const t = $('#toast');
+  t.textContent = message;
+  t.classList.remove('hidden');
+  t.style.animation = 'none';
+  void t.offsetWidth; // restart the drop-in animation
+  t.style.animation = '';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
 }
 
 function go(step) {
@@ -254,6 +379,7 @@ async function checkCard(read) {
     state.card = read;
     state.cardInfo = { last4: r.last4, holder: r.holder, mode: r.mode };
     state.pin = '';
+    buzz(20);
     go('pin');
     speak('Card accepted. Enter your PIN.');
   } catch {
@@ -272,7 +398,8 @@ async function authorize(keyRead) {
     state.result = { approved: false, reason: "Can't reach the laptop", step: 'key' };
   }
   go('result');
-  speak(state.result.approved ? 'Approved. Thank you.' : `Declined. ${state.result.reason}.`);
+  if (state.result.approved) setTimeout(() => speak('Approved. Thank you.'), 900);
+  else speak(`Declined. ${state.result.reason}.`);
 }
 
 // ---------- NFC ----------
@@ -294,12 +421,12 @@ function onTag(read) {
   if (state.pairing) return pairStep(read);
   if (state.step === 'card') return checkCard(read);
   if (state.step === 'key') return authorize(read);
-  if (state.step === 'shop') return flash('Choose your items, then tap Charge.');
+  if (state.step === 'shop') return flash('Choose your items, then tap Pay.');
 }
 
 async function startNfc() {
   if (!('NDEFReader' in window)) {
-    setStatus('No NFC: demo buttons', 'badge-offline');
+    setStatus('Demo mode', 'demo');
     render();
     return;
   }
@@ -307,7 +434,7 @@ async function startNfc() {
     const reader = new NDEFReader();
     await reader.scan();
     nfcOn = true;
-    setStatus('Card reader on', 'badge-live');
+    setStatus('Reader on', 'live');
     reader.addEventListener('reading', ({ serialNumber, message }) => {
       const now = Date.now();
       if (serialNumber === lastTag.serial && now - lastTag.at < SAME_TAG_IGNORE_MS) return;
@@ -316,7 +443,7 @@ async function startNfc() {
     });
     reader.addEventListener('readingerror', () => flash("Couldn't read that. Hold it still near the camera."));
   } catch (err) {
-    setStatus('Reader off', 'badge-red');
+    setStatus('Reader off', 'off');
     flash(`Card reader didn't start: ${err.message}`);
   }
   render();
@@ -324,7 +451,7 @@ async function startNfc() {
 
 function setStatus(text, kind) {
   const el = $('#nfc-status');
-  el.className = `badge badge-dot ${kind}`;
+  el.className = `status-pill ${kind}`;
   el.textContent = text;
 }
 
@@ -334,7 +461,7 @@ function renderSetup() {
   const r = state.lastRead;
   const mode = state.cardInfo ? state.cardInfo.mode : null;
   $('#setup-body').innerHTML = `
-    <p class="modal-text">Tap a tag on the phone to see what it reads.</p>
+    <p class="muted">Tap a tag on the phone to see what it reads.</p>
     <div class="setup-read">
       ${r ? `<b>Last read (${escapeHtml(r.at)})</b>
         <div class="mono small">ID ${escapeHtml(r.serialNumber || '—')}</div>
@@ -344,7 +471,7 @@ function renderSetup() {
     <p class="small muted">${mode === 'ndef' ? 'Mode: the phone reads the data on your tags (full SwampTag codes).' : mode === 'serial' ? 'Mode: ID-only. Cards are matched to keys by pairing below.' : 'Mode: decided by the first card you tap.'}</p>
     <h3 class="setup-h">Pair a card with its key</h3>
     <p class="small muted">Only needed when the phone sees IDs only.</p>
-    ${state.pairing === 'card' ? '<p class="pump-reason">Tap the CARD now…</p>' : state.pairing ? '<p class="pump-reason">Now tap the KEY FOB…</p>' : '<button class="btn btn-outline btn-sm" id="pair-btn">Pair card + key</button>'}`;
+    ${state.pairing === 'card' ? '<p class="setup-prompt">Tap the CARD now…</p>' : state.pairing ? '<p class="setup-prompt">Now tap the KEY FOB…</p>' : '<button class="pill pill-soft" id="pair-btn" style="margin-top:10px">Pair card + key</button>'}`;
   const btn = $('#pair-btn');
   if (btn) btn.addEventListener('click', () => { state.pairing = 'card'; renderSetup(); });
 }
@@ -379,7 +506,7 @@ $('#screen').addEventListener('click', (e) => {
     const k = b.dataset.pin;
     if (k === 'clear') state.pin = '';
     else if (k === 'back') state.pin = state.pin.slice(0, -1);
-    else if (state.pin.length < 4) state.pin += k;
+    else if (state.pin.length < 4) { state.pin += k; buzz(8); }
   } else if (b.id === 'pin-ok') {
     return go('key');
   } else if (b.dataset.sim) {
@@ -397,6 +524,7 @@ $('#screen').addEventListener('click', (e) => {
 $('#start-btn').addEventListener('click', async () => {
   $('#start').classList.add('hidden');
   const nfc = startNfc(); // first: its permission prompt needs this tap
+  try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { /* no sound */ }
   try { await document.documentElement.requestFullscreen(); } catch { /* not allowed */ }
   try { await screen.orientation.lock('portrait-primary'); } catch { /* Android may refuse */ }
   try { await navigator.wakeLock.request('screen'); } catch { /* not available */ }
@@ -404,11 +532,12 @@ $('#start-btn').addEventListener('click', async () => {
 });
 $('#setup-btn').addEventListener('click', () => { renderSetup(); $('#setup').classList.remove('hidden'); });
 $('#setup-close').addEventListener('click', () => { state.pairing = null; $('#setup').classList.add('hidden'); });
+$('#setup').addEventListener('click', (e) => { if (e.target.id === 'setup') { state.pairing = null; $('#setup').classList.add('hidden'); } });
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
     try { await navigator.wakeLock.request('screen'); } catch { /* ignore */ }
   }
 });
 
-setStatus('Reader off', 'badge-offline');
+setStatus('Reader off', 'off');
 render();
