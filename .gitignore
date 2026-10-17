@@ -1,3 +1,5 @@
-.env
-nessie_ids.json
+# .env and nessie_ids.json are committed on purpose so teammates share the
+# same Nessie key and demo account. Keep this repo PRIVATE.
 __pycache__/
+# Last accepted counter for each key (written by server.py while it runs)
+key_counters.json

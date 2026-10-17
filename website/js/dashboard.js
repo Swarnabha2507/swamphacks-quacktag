@@ -7,10 +7,12 @@ const DEMO_GOOD_UID = 'D3E40A11';
 const DEMO_BAD_UID = 'BADC0FFE';
 
 const state = Store.load();
-const link = new SerialLink();
+// The Pixel phone terminal reads the key (terminal-link.js). SerialLink (serial.js)
+// still works for the old USB reader if you swap it back in here.
+const link = new TerminalLink();
 
 let snap = null;         // latest Bank snapshot
-let pending = null;      // { onTag(uid) } while a modal is waiting for a tap
+let pending = null;      // { onTag(uid, reason) } while a modal is waiting for a tap
 let modalLocked = false; // true while a payment is mid-approval (Esc won't close it)
 let lastTap = null;
 let readerError = false;
@@ -150,14 +152,13 @@ function renderKeyPanel() {
     text.textContent = 'Reader not detected';
   } else if (link.connected) {
     dot.classList.add('on');
-    text.textContent = 'Connected';
+    text.textContent = 'Phone terminal connected';
   } else {
-    text.textContent = state.demoMode ? 'Demo mode' : 'Not connected';
+    text.textContent = state.demoMode ? 'Demo mode' : 'Phone terminal offline';
   }
 
-  $('#connect-btn').textContent = link.connected ? 'Disconnect reader' : 'Connect reader';
-  $('#connect-btn').disabled = !SerialLink.supported();
-  $('#serial-unsupported').classList.toggle('hidden', SerialLink.supported());
+  $('#connect-btn').textContent = link.connected ? 'Terminal connected' : 'Set up phone';
+  $('#serial-unsupported').classList.add('hidden');
 
   const hasKey = Boolean(state.keyUid);
   $('#key-uid').textContent = hasKey ? state.keyUid : 'None';
@@ -288,17 +289,29 @@ function handleLine(line) {
     toast('RFID reader not detected. Check the RC522 wiring.');
   } else if (line.startsWith('TAG:')) {
     const uid = line.slice(4).trim().toUpperCase();
-    if (/^[0-9A-F]{4,20}$/.test(uid)) onTag(uid);
+    if (/^[0-9A-Z-]{3,40}$/.test(uid)) onTag(uid);
+    return;
+  } else if (line.startsWith('BADTAG:')) {
+    // The phone read a key, but its code was wrong or old (possibly a copy).
+    onTag('INVALID', line.slice(7).trim() || 'Unreadable key');
+    return;
+  } else if (line === 'SIM:GOOD' || line === 'SIM:BAD') {
+    simulateTap(line === 'SIM:GOOD'); // demo buttons on the phone
     return;
   }
   renderKeyPanel();
 }
 
-function onTag(uid) {
+function onTag(uid, reason) {
   lastTap = { uid, date: new Date().toISOString() };
   renderKeyPanel();
-  if (pending) pending.onTag(uid);
-  else toast(`Key ${uid} tapped. No payment is waiting for approval.`);
+  if (pending) pending.onTag(uid, reason);
+  else toast(reason ? `Key rejected: ${reason}.` : `Key ${uid} tapped. No payment is waiting for approval.`);
+}
+
+// What the phone terminal shows while it waits for the key.
+function terminalDetails(payment, extra = {}) {
+  return { amount: payment.amount, name: payment.name, place: payment.place, ...extra };
 }
 
 // ---------- Payments ----------
@@ -346,7 +359,7 @@ function startPayment(payment) {
 }
 
 async function approveTrusted(payment) {
-  link.send('OK');
+  link.send('OK', terminalDetails(payment, { trusted: true }));
   showResult('busy', 'Approving…', `Checking ${payment.name} against your tap limit.`);
   await commit(payment, 'trusted');
   showResult('good', 'Approved, no tap needed',
@@ -375,7 +388,7 @@ function requestApproval(payment, risk) {
     </div>`, { locked: true });
 
   wireDemoButtons(modal);
-  link.send('WAIT');
+  link.send('WAIT', terminalDetails(payment, { reasons }));
 
   let remaining = APPROVAL_SECONDS;
   const timer = setInterval(() => {
@@ -389,8 +402,9 @@ function requestApproval(payment, risk) {
   }, 1000);
 
   pending = {
-    onTag(uid) {
-      if (uid === state.keyUid) finish('approved');
+    onTag(uid, reason) {
+      if (reason) finish('blocked', reason);
+      else if (uid === state.keyUid) finish('approved');
       else finish('blocked', `Unrecognized key ${uid}`);
     },
   };
@@ -409,7 +423,7 @@ function requestApproval(payment, risk) {
       renderShield();
       showResult('good', 'Payment approved', `${money.format(payment.amount)} to ${payment.name}. Verified with your SwampTag key.`);
     } else if (result === 'blocked') {
-      link.send('DENY');
+      link.send('DENY', { reason });
       recordBlocked(payment, reason);
       showResult('bad', 'Payment blocked', `${reason}. Your ${money.format(payment.amount)} stayed in your account and the attempt is logged in SwampTag Shield.`);
     } else {
@@ -667,10 +681,14 @@ function registerFlow() {
       ${demoButtonsHtml({ wrong: false })}
     </div>`);
   wireDemoButtons(modal);
-  link.send('WAIT');
+  link.send('WAIT', { linking: true });
 
   pending = {
-    onTag(uid) {
+    onTag(uid, reason) {
+      if (reason) {
+        toast(`That key can't be linked: ${reason}. Try again.`);
+        return; // keep waiting for a good read
+      }
       pending = null;
       link.send('OK');
       Store.set('keyUid', uid);
@@ -727,19 +745,19 @@ async function syncKeyToProfile(uid) {
   }
 }
 
-async function toggleConnection() {
-  const btn = $('#connect-btn');
-  btn.disabled = true; // one open/close at a time
-  try {
-    if (link.connected) await link.disconnect();
-    else await link.connect();
-  } catch (err) {
-    // NotFoundError = the user closed the port picker without choosing.
-    if (err.name !== 'NotFoundError') toast('Could not open the port. Close Arduino IDE\'s Serial Monitor and try again.');
-  } finally {
-    btn.disabled = !SerialLink.supported();
-    renderKeyPanel();
-  }
+// How to connect the Pixel phone terminal to this laptop.
+function phoneSetupFlow() {
+  const port = location.port || '80';
+  openModal(`
+    ${modalHead('Connect the phone terminal')}
+    <p class="modal-text">${link.connected ? 'The phone terminal is connected.' : 'The phone terminal is not connected yet.'}</p>
+    <ol class="setup-steps">
+      <li>On the Pixel: <strong>Settings → About phone</strong>, tap <strong>Build number</strong> 7 times, then turn on <strong>USB debugging</strong> in Developer options.</li>
+      <li>Plug the phone into this laptop with the USB-C cable that runs through the terminal case, and allow USB debugging on the phone.</li>
+      <li>On this laptop, open <strong>edge://inspect/#devices</strong> (or chrome://inspect). Click <strong>Port forwarding</strong> and add <strong>${port} → localhost:${port}</strong>. Keep that tab open.</li>
+      <li>On the phone, open <strong>localhost:${port}/terminal.html</strong> in Chrome and tap <strong>Start terminal</strong>.</li>
+    </ol>
+    <button class="btn btn-navy btn-block" data-close>Done</button>`);
 }
 
 // ---------- Wire up ----------
@@ -747,7 +765,7 @@ async function toggleConnection() {
 link.onLine = handleLine;
 link.onStatus = (connected) => {
   if (!connected) readerError = false;
-  toast(connected ? 'Reader connected' : 'Reader disconnected');
+  toast(connected ? 'Phone terminal connected' : 'Phone terminal disconnected');
   renderKeyPanel();
 };
 
@@ -760,7 +778,7 @@ $('#shield-bills').addEventListener('click', () => $('#bills').scrollIntoView({ 
 $('#fraud-btn').addEventListener('click', fraudFlow);
 $('#register-btn').addEventListener('click', registerFlow);
 $('#unlink-btn').addEventListener('click', unlinkKey);
-$('#connect-btn').addEventListener('click', toggleConnection);
+$('#connect-btn').addEventListener('click', phoneSetupFlow);
 $('#demo-toggle').addEventListener('change', (e) => {
   Store.set('demoMode', e.target.checked);
   renderKeyPanel();

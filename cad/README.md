@@ -1,4 +1,100 @@
-# SwampTag reader enclosure
+# SwampTag 3D-printed parts
+
+| File | What it is |
+|---|---|
+| **`swamptag_terminal.scad`** | **The phone terminal: a card-scanner case for the Pixel 6a.** This is the one for the demo. |
+| `swamptag_reader.scad` | The old Arduino + RC522 reader box (see the bottom of this page). |
+
+Printer: **Prusa CORE One+** (250 × 220 × 270 mm). Slice in PrusaSlicer with the CORE One profile.
+
+---
+
+# Phone terminal (`swamptag_terminal.scad`)
+
+A countertop card terminal, styled like a Square terminal, with your **Pixel 6a as the screen**. The key goes into a slot under the screen, and the phone reads it with NFC.
+
+```
+ side view (cut through the slot)              front view
+           ______  127 mm                         ┌──────────────┐
+          /      |                                │ ┌──────────┐ │
+         / Pixel |  phone face-up, portrait,      │ │  $90.00  │ │
+        / (upside|  UPSIDE DOWN so its NFC spot   │ │  ((•))   │ │
+       /  down)  |  is right above the slot       │ │ Insert   │ │
+      / ═══════  |  30° tilt                      │ │ key ▼    │ │
+ 30mm/[slot]_____|                                │ └──────────┘ │
+     front                USB-C out the top-back  │ ▔▔[ slot ]▔▔ │
+                                                  └──────────────┘
+```
+
+| Part | What it is | Print time (CORE One+, approx.) |
+|---|---|---|
+| `body` | Rounded wedge (96 × 168 × 127 mm) with the key slot built in | ~3 h |
+| `tray` | The screen frame the phone sits in. It drops into the body flush with the face | ~1.5 h |
+| `fit_test` | The phone's top end of the tray (pocket corners + camera channel) and a slot gauge | ~15 min |
+| `assembly` | Preview only, with a phone and a card in place | — |
+
+## How it works
+- **Phone placement:** the Pixel's NFC antenna is on its **back, near the camera**, so the phone sits **upside down**. That puts the camera end, and the NFC spot, at the bottom of the screen, right over the slot.
+- **Picture orientation:** the terminal page (`website/terminal.html`) turns itself right side up.
+- **The slot:** it runs **under the phone at the same 30° angle**, so the key ends up **2.4 mm under the phone's back** at the NFC spot.
+- **Which key to use:**
+  - **A card works best:** it sticks out of the slot like in a real terminal.
+  - **A fob slides in all the way:** hold it by its keyring and let it slide back out.
+  - In both cases, hold the key in for a second while the phone reads it.
+- **Buttons and cable:**
+  - The side buttons end up on the left, over a small groove, so the frame doesn't press them.
+  - USB-C ends up at the top. The cable lies in a notch and leaves over the top-back corner.
+
+## 1. Measure first (5 minutes, free **NFC Tools** app)
+Open `swamptag_terminal.scad`. These settings are at the top:
+
+| Setting | Default | How to measure |
+|---|---|---|
+| `nfc_from_top` | 45 | Open NFC Tools → Read. Slide the key slowly down the **back** of the phone from the top edge, and note where it reads best. |
+| `cam_from_top`, `cam_len`, `cam_h` | 8, 22, 1.6 | Where the camera bar starts, its height, and how far it sticks out. |
+| `btn_from`, `btn_to` | 35, 100 | Where the side buttons start and end, measured from the top edge. |
+| `slot_h` | 7.5 | Key thickness + 1 mm. |
+
+In NFC Tools, also check that the phone can read the **data** the key device wrote, not just the serial number. If it can't, see [docs/KEY_FORMAT.md](../docs/KEY_FORMAT.md) (switch to NTAG215 tags).
+
+## 2. Export and print
+1. In OpenSCAD, set `part` to `"fit_test"`, press **F6**, then **File → Export → Export as STL**.
+2. **Print it and check the fit:**
+   - The phone's top end drops into the pocket with the camera bar clearing the channel.
+   - Your key and a card slide through the slot gauge.
+3. Adjust `fit`, `slot_h` or the camera settings if needed.
+4. Export and print `"body"` (**white PLA**) and `"tray"` (any color; dark grey looks like a screen frame).
+
+| PrusaSlicer setting | Value |
+|---|---|
+| Printer / filament | Original Prusa CORE One+ / Prusament PLA |
+| Layer height | 0.20 mm SPEED (or STRUCTURAL) |
+| Perimeters | 3 |
+| Infill | 15% gyroid |
+| Supports | **None** |
+| Orientation | Use the STLs as exported (body standing on its base, tray flat with the pocket facing up) |
+
+## 3. Put it together
+1. Drop the tray into the body's face. Its rim sits flush.
+2. Plug the USB-C cable into the phone and lay it in the notch at the top.
+3. Set the phone in the pocket **upside down**, camera end toward the slot.
+4. Set up the phone as described in the main [README](../README.md): port forwarding, open `localhost:8000/terminal.html`, tap **Start terminal**.
+5. Insert a key: the screen shows ✓ or ✗ and says it out loud.
+
+## Troubleshooting
+| Problem | Fix |
+|---|---|
+| The phone doesn't react to the key in the slot | Hold the key all the way in for a second. Re-measure `nfc_from_top`, and check the key in NFC Tools on the bare phone. |
+| The phone rocks in the pocket | The camera bar is hitting the floor: raise `cam_h` or widen `cam_len`. |
+| The side buttons get pressed | Increase `btn_relief`, or adjust `btn_from` / `btn_to`. |
+| The tray is tight in the body | Increase `tray_fit` by 0.1 mm. |
+| The picture is upside down | Tap the ⟲ button in the corner of the terminal page. |
+
+---
+
+# Old: Arduino reader box (`swamptag_reader.scad`)
+
+The original design, from before the phone became the reader. Keep it for the USB reader or the key device.
 
 An angled card terminal that holds the **Arduino UNO R4 WiFi** and the **RC522 RFID reader** from the Super Starter Kit.
 - No screws.

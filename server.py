@@ -19,9 +19,12 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
+from terminal import KeyChecker, TerminalRelay
+
 ROOT = Path(__file__).resolve().parent
 WEB_DIR = ROOT / "website"
 IDS_FILE = ROOT / "nessie_ids.json"
+COUNTERS_FILE = ROOT / "key_counters.json"
 TIMEOUT_S = 8
 
 
@@ -43,6 +46,11 @@ API_KEY = os.environ.get("NESSIE_API_KEY", "").strip()
 OFFLINE = __name__ == "__main__" and "--offline" in sys.argv
 if API_KEY == "paste-your-key-here" or OFFLINE:
     API_KEY = ""
+
+# Shared secret for the rotating key codes (docs/KEY_FORMAT.md). Blank = accept codes unchecked.
+KEY_SECRET = os.environ.get("KEY_SECRET", "").strip()
+RELAY = TerminalRelay(KeyChecker(KEY_SECRET, COUNTERS_FILE))
+QUIET_PATHS = ("/api/terminal/state", "/api/terminal/events")  # polled several times a second
 
 
 def nessie_request(method, path, body=None, query=None):
@@ -115,8 +123,39 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def log_message(self, fmt, *args):
-        if self.path.startswith("/api/"):
+        if self.path.startswith("/api/") and not self.path.startswith(QUIET_PATHS):
             super().log_message(fmt, *args)
+
+    def read_json_body(self):
+        """Returns the parsed JSON body (None if empty). Raises ValueError for bad JSON."""
+        length = int(self.headers.get("Content-Length") or 0)
+        return json.loads(self.rfile.read(length)) if length else None
+
+    def handle_terminal(self, method, parts):
+        """Relay between the dashboard and the phone terminal (terminal.py)."""
+        route = parts.path[len("/api/terminal/"):]
+        try:
+            body = self.read_json_body() or {}
+        except ValueError:
+            return self.send_json(400, {"error": "Body must be JSON"})
+
+        if route == "state" and method == "GET":
+            return self.send_json(200, RELAY.state())
+        if route == "events" and method == "GET":
+            query = dict(parse_qsl(parts.query))
+            try:
+                since = int(query.get("since", "-1"))
+            except ValueError:
+                since = -1
+            return self.send_json(200, RELAY.events_since(since))
+        if route == "command" and method == "POST":
+            ok = RELAY.command(body.get("cmd"), body.get("details"))
+            return self.send_json(200 if ok else 400, {"ok": ok})
+        if route == "read" and method == "POST":
+            texts = [t for t in body.get("texts", []) if isinstance(t, str)][:8]
+            line = RELAY.read(str(body.get("serialNumber", "")), texts, body.get("simulate"))
+            return self.send_json(200, {"line": line})
+        return self.send_json(404, {"error": "Unknown terminal route"})
 
     def send_json(self, status, payload):
         body = json.dumps(payload).encode()
@@ -130,18 +169,17 @@ class Handler(SimpleHTTPRequestHandler):
         parts = urlsplit(self.path)
         if parts.path == "/api/config" and method == "GET":
             return self.send_json(200, build_config())
+        if parts.path.startswith("/api/terminal/"):
+            return self.handle_terminal(method, parts)
         if not parts.path.startswith("/api/nessie/"):
             return self.send_json(404, {"error": "Unknown API route"})
         if not API_KEY:
             return self.send_json(503, {"error": "No Nessie API key configured"})
 
-        body = None
-        length = int(self.headers.get("Content-Length") or 0)
-        if length:
-            try:
-                body = json.loads(self.rfile.read(length))
-            except ValueError:
-                return self.send_json(400, {"error": "Body must be JSON"})
+        try:
+            body = self.read_json_body()
+        except ValueError:
+            return self.send_json(400, {"error": "Body must be JSON"})
 
         path = parts.path[len("/api/nessie/"):]
         query = [(k, v) for k, v in parse_qsl(parts.query) if k != "key"]
@@ -174,6 +212,8 @@ def main():
     print("Nessie key:", "found" if API_KEY else "missing (offline demo data)")
     print("Nessie IDs:", "found" if IDS_FILE.exists() else "missing (run python tools/seed_nessie.py)")
     print("Auth0:", "on" if auth0_config() else "off (demo login; add AUTH0_DOMAIN and AUTH0_CLIENT_ID to .env)")
+    print("Key codes:", "checked with KEY_SECRET" if KEY_SECRET else "not checked (no KEY_SECRET in .env)")
+    print(f"Phone terminal: http://localhost:{port}/terminal.html (forward port {port} from edge://inspect)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
