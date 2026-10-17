@@ -3,6 +3,7 @@
 | File | What it is |
 |---|---|
 | **`swamptag_terminal.scad`** | **The phone terminal: a card-scanner case for the Pixel 6a.** This is the one for the demo. |
+| **`swamptag_keybox.scad`** | **The key dock: a small case for the Feather RP2040 + RC522 + 7 jumper wires**, with a fob cradle on the lid. |
 | `swamptag_reader.scad` | The old Arduino + RC522 reader box (see the bottom of this page). |
 
 Printer: **Prusa CORE One+** (250 × 220 × 270 mm). Slice in PrusaSlicer with the CORE One profile.
@@ -89,6 +90,49 @@ In NFC Tools, also check that the phone can read the **data** the key device wro
 | The side buttons get pressed | Increase `btn_relief`, or adjust `btn_from` / `btn_to`. |
 | The tray is tight in the body | Increase `tray_fit` by 0.1 mm. |
 | The picture is upside down | Tap the ⟲ button in the corner of the terminal page. |
+
+---
+
+# Key dock (`swamptag_keybox.scad`)
+
+A small, clean case for the **key device**: the **Adafruit Feather RP2040** and the **RC522** side by side, with the **7 female-to-female jumpers** tidied underneath. The key fob rests in a cradle on the lid, right over the RC522's antenna, so it can be rewritten.
+
+```
+ top view (65 × 73 mm)                     side view (28.5 mm tall)
+┌─────────────────────────────┐            ┌───────── lid + fob cradle ─────────┐
+│  ╭─────────╮                │            │ RC522 ▔▔▔▔▔▔▔▔   Feather ▔▔▔▔▔▔    │
+│  │ fob     │   RC522        │ ◄ front    │   ▼▼ female plugs ▼▼  ▼▼▼▼        │
+│  │ cradle  │   (header ▶)   │            │  ═══ wires in the comb ═══  ◄USB-C │
+│  ╰──   ───╯                 │            └────────────────────────────────────┘
+│  ▔▔ comb (7 slots) ▔▔ clips │
+│ ◄USB-C  Feather RP2040      │
+└─────────────────────────────┘
+```
+
+| Part | What it is | Print time (CORE One+, approx.) |
+|---|---|---|
+| `base` | The box: Feather standoffs with press-fit pegs, RC522 corner posts, wire comb and clips, USB-C opening | ~1.5 h |
+| `lid` | Flat lid that sits flush, with the fob cradle and a "SwampTag KEY" label | ~25 min |
+| `fit_test` | Feather peg pattern, RC522 corner posts and a USB-C opening gauge | ~15 min |
+
+- **Size:** 65 × 73 × 28.5 mm (2.57 × 2.87 × 1.12 in), with room inside for an RC522 of **59.4 × 39.1 mm (2.34 × 1.54 in)**.
+- **Why 28.5 mm and not 25.4 mm (1 in):** both boards' pins point down, and a female plug hangs about 17 mm below each board (2.5 mm header plastic + 14 mm plug). 28.5 mm is the smallest box that fits that. To go thinner:
+  - Re-solder the Feather's headers pins-up, or use right-angle headers.
+  - Or solder the wires directly to the boards.
+  - Then lower `under_clear`.
+- **Wires:** plug the jumpers onto both boards **before** putting the boards in. Then lay the 7 wires through the slots of the comb on the floor, and tuck any spare length under the two clips.
+- **Fob:** it sits 6.3 mm above the RC522 (well inside its range). The front opening of the cradle lets you slide it out.
+- **Printing:** no supports. Print the base standing on its floor and the lid flat, cradle up. White PLA for the base matches the terminal.
+
+**Measure before printing:**
+
+| Setting | Default | What to measure |
+|---|---|---|
+| `rc_l`, `rc_w` | 59.4, 39.1 | The RC522 board size (your 2.34 × 1.54 in) |
+| `fe_top_clear` | 6.5 | Height of the tallest part on top of the Feather (the battery connector) + 0.5 |
+| `rc_top_clear` | 4.5 | Height of the tallest part on top of the RC522 (the crystal) + 0.5 |
+| `under_clear` | 17 | Header plastic + the length of your female plug + 0.5 |
+| `fob_l`, `fob_w` | 41, 32 | Your key fob |
 
 ---
 

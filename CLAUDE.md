@@ -63,6 +63,10 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - The Pixel 6a sits in portrait, **upside down**, so its NFC spot (near the camera) is over the slot.
   - The key slot runs parallel under the phone and stops `slot_past_nfc` beyond `nfc_from_top`.
   - The face coordinates come from `on_face()`.
+- `cad/swamptag_keybox.scad`: the **key dock**, a small case for the Adafruit Feather RP2040 + RC522 + 7 female-to-female jumpers (`part` = assembly/base/lid/fit_test).
+  - Both boards' pins point down, so there's a wire bay underneath with a comb and clips.
+  - Flat flush lid with a fob cradle over the RC522 antenna.
+  - The RC522 is 59.4 × 39.1 mm (the user's measurement). The box is 65 × 73 × 28.5 mm; 28.5 is the minimum for downward pins plus 14 mm female plugs, and the user asked for about 1 in.
 - `cad/swamptag_reader.scad`: the old Arduino reader box (`part` = assembly/base/lid/diffuser/fit_test).
 - Both CAD files use core OpenSCAD only. The guide is `cad/README.md`. OpenSCAD isn't installed here, so the user exports the STLs.
 - `docs/KEY_FORMAT.md`: the agreement with the key-device teammate (ST1 record, HMAC, counter, NTAG215 advice, antenna off between writes).
