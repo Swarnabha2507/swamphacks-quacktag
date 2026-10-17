@@ -43,6 +43,8 @@ Built at SwampHacks (University of Florida) for these tracks:
 *Pitch line: Auth0 protects who you are. SwampTag protects what you pay, and how you pay it.*
 
 ## How it's built
+For a full walkthrough of every part, see **[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)**.
+
 ```
 RC522 ──SPI──▶ UNO R4 WiFi ──USB──▶ Chrome (Web Serial) ──▶ SwampTag site ──▶ server.py ──▶ Nessie API
                LED matrix ✓/✗ ◀── OK / DENY ──┘                    │

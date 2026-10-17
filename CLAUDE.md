@@ -15,6 +15,9 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
 - `.env` (gitignored) holds `NESSIE_API_KEY`. `nessie_ids.json` is gitignored too.
 - `website/`: static site, no build step.
   - `js/serial.js`: `SerialLink`, the Web Serial wrapper.
+    - `_shutdown()` must close in order (cancel reader → await read pipe → close writer → await write pipe → close port), or the port stays open and the next connect fails with "already open".
+    - A `_busy` flag stops overlapping opens/closes; it reopens allowed ports on page load (`reconnect()`) and on replug (`connect` event).
+  - `reader-test.html`: standalone reader check (shows each tag ID, flags the same key tapped twice). Full walkthrough in `docs/HOW_IT_WORKS.md`.
   - `js/store.js`: `Store` (localStorage). Holds key/settings/alerts/`localRows` in both modes, plus the offline ledger, `CONTACTS`, `MERCHANTS`, `HOME`.
   - `js/risk.js`: `assessRisk()`, the smart-tap rules. Also runs in Node.
     - Only the amount decides: a tap is needed when `amount > tapLimit` (or Smart taps is off). New merchant / distance / usual-spend reasons are shown on the tap screen but don't trigger a tap.

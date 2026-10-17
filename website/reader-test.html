@@ -58,7 +58,8 @@
 
     link.onStatus = (connected) => {
       $('connect').textContent = connected ? 'Disconnect' : 'Connect reader';
-      setStatus(connected ? 'Connected, waiting for the Arduino…' : 'Not connected', connected ? 'warn' : '');
+      // READY only prints when the board starts, so after a reconnect we may not see it again.
+      setStatus(connected ? 'Connected: tap a tag' : 'Not connected', connected ? 'on' : '');
       log(connected ? 'Port opened' : 'Port closed');
     };
 
@@ -84,17 +85,23 @@
     };
 
     $('connect').addEventListener('click', async () => {
-      if (link.connected) return link.disconnect();
+      $('connect').disabled = true; // one open/close at a time
       try {
-        await link.connect();
+        if (link.connected) await link.disconnect();
+        else await link.connect();
       } catch (err) {
-        log(`Could not connect: ${err.message}`);
+        // NotFoundError = the port picker was closed without choosing.
+        if (err.name !== 'NotFoundError') log(`Could not connect: ${err.message} (is Serial Monitor open?)`);
+      } finally {
+        $('connect').disabled = false;
       }
     });
 
     if (!SerialLink.supported()) {
       $('connect').disabled = true;
       setStatus('This browser cannot talk to USB devices. Open this page in Chrome or Edge.', 'warn');
+    } else {
+      link.reconnect(); // reopen a reader this page was allowed to use before
     }
   </script>
 </body>

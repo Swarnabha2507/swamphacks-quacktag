@@ -728,14 +728,17 @@ async function syncKeyToProfile(uid) {
 }
 
 async function toggleConnection() {
-  if (link.connected) {
-    await link.disconnect();
-    return;
-  }
+  const btn = $('#connect-btn');
+  btn.disabled = true; // one open/close at a time
   try {
-    await link.connect();
+    if (link.connected) await link.disconnect();
+    else await link.connect();
   } catch (err) {
-    if (err.name !== 'NotFoundError') toast('Could not open the port. Is Serial Monitor still open?');
+    // NotFoundError = the user closed the port picker without choosing.
+    if (err.name !== 'NotFoundError') toast('Could not open the port. Close Arduino IDE\'s Serial Monitor and try again.');
+  } finally {
+    btn.disabled = !SerialLink.supported();
+    renderKeyPanel();
   }
 }
 
