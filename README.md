@@ -30,13 +30,16 @@ Built at SwampHacks (University of Florida) for these tracks:
 | $390 at a gas station in Orlando | asks for a tap ("Over your $200 tap limit · New merchant · 96 mi from home · 15× your usual spend") |
 | Sending $500 or paying $725 rent | asks for a tap |
 
-**3. Scam check, built for older adults.** Before any transfer of **$200 or more**, SwampTag asks *"Why are you sending this money?"*
-- **Safe answers** (paying back a friend, splitting rent) go straight to the tap.
-- **Red-flag answers** pause the transfer: a family member "in trouble", "the IRS told me to", someone met online, or a prize fee.
-  - A scam review explains the danger in plain words and **reads it aloud** (browser text-to-speech).
-  - A trusted family contact gets a heads-up.
+**3. Voice scam check, built for older adults.** Before a payment over your tap limit, or any transfer of **$200 or more**, SwampTag asks *"What is this for?"*
+- **Say it or type it.** Press 🎤 and explain out loud. **Whisper** (running on the laptop) turns the speech into text.
+- **Gemini reviews the explanation** and answers with a risk level, the likely scam type and a plain-language warning.
+  - If Gemini can't be reached, offline phrase rules take over, so the demo never gets stuck.
+- **Safe answers** (paying back a friend, splitting rent) go straight to the key tap.
+- **Red-flag answers** pause the payment: a family member "in trouble", "the IRS told me to", gift cards, someone met online, or a prize fee.
+  - The warning is **read aloud** (browser text-to-speech), and a trusted family contact gets a heads-up.
+  - **📞 Talk to a representative** is offered. In the demo it only logs the request; no call is made.
   - To send anyway, the person must **call the fraud line** and enter the code they're given. Then the key is still required.
-- The scam review is **simulated** for the demo: rules and canned findings, no AI API. Next step: a real model (Gemini API) reading the full explanation.
+- Every transcription and review is appended to `scam_reviews.txt` on the laptop (never committed).
 
 **4. Real sign-in.** Auth0 handles login (Google, MFA, passkeys). The linked fob is saved in the user's Auth0 profile, so it follows them to any browser.
 
@@ -99,14 +102,29 @@ Only **approved** payments are written to Nessie. Blocked money never moves.
    3. Under **Authentication → Social**, enable Google. Under **Security → Multi-factor Auth**, enable One-time Password (and optionally Passkeys).
    4. Add the app's `AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` to `.env`. These are public values, not secrets.
    5. If sign-in says the app isn't authorized for the Management API: go to **APIs → Auth0 Management API → Application Access**, and give your SPA **user access** with `read:current_user` and `update:current_user_metadata`.
-3. **Start the server:** run `python server.py`, then open **http://localhost:8000** in **Chrome or Edge** on the laptop.
-4. **Phone terminal (Pixel 6a):**
+3. **Gemini (scam review):** get a free key at https://aistudio.google.com/apikey and put it in a file called **`.env.local`** next to `server.py`:
+   ```
+   GEMINI_API_KEY=your-key-here
+   ```
+   `.env.local` is your personal file and is never committed. Without a key, the scam review uses the offline rules.
+4. **Whisper (🎤 voice), one-time setup.** Needs Python 3.12:
+   ```
+   py -3.12 -m venv .venv
+   .venv\Scripts\python.exe -m pip install -r learn/requirements.txt
+   ```
+   The first voice check downloads the speech model (about 150 MB).
+5. **Start the server:**
+   - **With voice:** `.venv\Scripts\python.exe server.py`
+   - **Without voice:** `py server.py` (everything else works; the 🎤 button is hidden)
+
+   Then open **http://localhost:8000** in **Chrome or Edge** on the laptop. The startup lines say whether Nessie, Gemini and voice are on.
+6. **Phone terminal (Pixel 6a):**
    1. On the phone: **Settings → About phone**, tap **Build number** 7 times, then turn on **USB debugging** in Developer options.
    2. Plug the phone into the laptop and allow USB debugging.
    3. On the laptop, open **edge://inspect/#devices** (or chrome://inspect) → **Port forwarding** → add **8000 → localhost:8000**. Keep that tab open.
    4. On the phone, open **localhost:8000/terminal.html** in Chrome and tap **Start terminal**. The dashboard's Terminal row turns green.
    5. Hold the key flat against the **back of the phone, near the camera**, to read it. If the page shows upside down, tap **⟲**.
-5. **Key codes (when the key device is ready):** put the same `KEY_SECRET` in `.env` and in the key device ([docs/KEY_FORMAT.md](docs/KEY_FORMAT.md)). Without it, the terminal accepts any `ST1` code or the tag's serial number.
+7. **Key codes (when the key device is ready):** put the same `KEY_SECRET` in `.env` and in the key device ([docs/KEY_FORMAT.md](docs/KEY_FORMAT.md)). Without it, the terminal accepts any `ST1` code or the tag's serial number.
 
 **Backups:**
 - No internet? Run `python server.py --offline` for demo data.
@@ -140,8 +158,7 @@ Only **approved** payments are written to Nessie. Blocked money never moves.
 ## Honest limitations and next steps
 - **Rotating codes, not real cryptography on the tag.** The key device rewrites a signed code with a counter, so a copied tag goes stale, but anyone who reads the newest code first could use it once. Production would use challenge-response tags such as MIFARE DESFire, or a phone's secure element.
 - **Where checks run.** Tag and risk checks run in the browser for the demo. In production the bank's server does them.
-- **Simulated scam review.** The fraud line, trusted-contact alert and scam review are simulated.
+- **Partly simulated scam check.** Whisper and the Gemini review are real. The fraud line, the trusted-contact alert and "Talk to a representative" are simulated: nothing is sent and no call is made.
 - **Next steps:**
-  - A Gemini-powered review of the full explanation.
-  - Real SMS or calls to the trusted contact.
+  - Real SMS or calls to the trusted contact, and a real hand-off to a representative.
   - A purpose-built terminal with its own NFC reader instead of a phone.

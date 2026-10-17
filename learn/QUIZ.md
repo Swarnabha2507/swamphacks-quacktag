@@ -522,3 +522,35 @@ It printed an arrow (→) and an emoji, which the Windows terminal's code page c
 <details><summary>Answer</summary>
 Your rule: only the Whisper/Gemini pipeline goes to GitHub (`voice-pipeline`). The website changes live on the local `voice-website` branch, which has no upstream, so a plain `git push` can't send it by accident.
 </details>
+
+## 16. Branches and merging (combining the voice website with the phone terminal)
+
+**16.1** You had `voice-website` and Swarnabha had `main` + `v1-no-whisper`. How could we tell how far apart they were?
+<details><summary>Answer</summary>
+`git log voice-website..origin/v1-no-whisper` lists commits that are on Swarnabha's branch but not on yours. It showed only **one** commit (pump sales in Recent activity). `git merge-base --is-ancestor origin/main voice-website` said yes: everything on main was already inside your branch.
+</details>
+
+**16.2** What is a merge conflict?
+<details><summary>Answer</summary>
+Both branches changed the **same lines** of the same file in different ways, so git can't pick one automatically. It writes both versions between `<<<<<<<`, `=======` and `>>>>>>>` markers, and a person decides.
+</details>
+
+**16.3** Why was this conflict easy to fix?
+<details><summary>Answer</summary>
+Both sides only added names to one import line: yours added `datetime` (for the scam log), and Swarnabha's added `datetime, timezone` (for sale times). Keeping both, `from datetime import date, datetime, timezone`, satisfies both. Neither side's code needed to change.
+</details>
+
+**16.4** What is a fast-forward, and why could the new version go to `main` with one?
+<details><summary>Answer</summary>
+If the new version already **contains** every commit on main, git can just move main forward to it; nothing on main is replaced. Our merged branch was built on top of main, so pushing it to main was a fast-forward.
+</details>
+
+**16.5** Why didn't we force-push?
+<details><summary>Answer</summary>
+A force-push replaces what's on GitHub and can delete teammates' commits that you don't have. A normal push is refused if main moved in the meantime, which protects their work: then you merge their change in and push again.
+</details>
+
+**16.6** Which files stay off GitHub no matter what, and how is that enforced?
+<details><summary>Answer</summary>
+`.env.local` (your Gemini key) and changes to `.gitignore`. `.env.local` is listed in `.git/info/exclude` (a local-only ignore list), and the local `pre-commit` and `pre-push` hooks refuse commits or pushes that include either file. Files are also staged by name, never with `git add -A`.
+</details>
