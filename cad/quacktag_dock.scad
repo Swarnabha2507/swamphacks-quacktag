@@ -1,4 +1,4 @@
-// SwampTag key dock: a slim case for the Feather RP2040 + RC522 key device.
+// QuackTag key dock: a slim case for the Feather RP2040 + RC522 key device.
 // The key fob rests in a shallow pocket on top and gets a new code every 15 s.
 //
 // How it stays slim (about 67 x 71 x 27 mm):
@@ -50,7 +50,7 @@ lid_t = 1.8;
 corner_r = 6;
 fit = 0.15;         // lid-to-wall clearance
 glow_t = 0.6;       // lid thickness left over the glow strip
-label = "SwampTag";
+label = "QuackTag";
 
 /* [Hidden] */
 $fn = 64;

@@ -68,7 +68,7 @@ def fake_urlopen(behaviour):
 
 
 # ---------------------------------------------------------------------------
-print(f"SwampTag voice check self-test ({'offline' if OFFLINE else 'live'}), {datetime.now():%Y-%m-%d %H:%M:%S}\n")
+print(f"QuackTag voice check self-test ({'offline' if OFFLINE else 'live'}), {datetime.now():%Y-%m-%d %H:%M:%S}\n")
 
 
 def packages():

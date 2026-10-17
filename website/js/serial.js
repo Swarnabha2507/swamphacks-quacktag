@@ -1,4 +1,4 @@
-// Talks to the SwampTag Arduino over USB using the Web Serial API (Chrome / Edge).
+// Talks to the QuackTag Arduino over USB using the Web Serial API (Chrome / Edge).
 // Usage:
 //   const link = new SerialLink();
 //   link.onLine = (line) => { ... };          // every line the Arduino prints

@@ -1,4 +1,4 @@
-"""Creates the SwampTag demo account in Capital One's Nessie API.
+"""Creates the QuackTag demo account in Capital One's Nessie API.
 
     python tools/seed_nessie.py          # first time
     python tools/seed_nessie.py --fresh  # create a brand-new set of demo data
@@ -93,7 +93,7 @@ def main():
     print("Creating Albert Gator and his checking account...")
     customer_id = post("customers", CUSTOMER)
     account_id = post(f"customers/{customer_id}/accounts",
-                      {"type": "Checking", "nickname": "SwampTag Checking", "rewards": 0, "balance": OPENING_BALANCE})
+                      {"type": "Checking", "nickname": "QuackTag Checking", "rewards": 0, "balance": OPENING_BALANCE})
 
     print("Creating friends for peer-to-peer transfers...")
     contacts = []
@@ -123,7 +123,7 @@ def main():
     jordan = contacts[0]
     post(f"accounts/{jordan['accountId']}/transfers", {
         "transaction_date": day(-1), "status": "completed", "amount": 40,
-        "description": "SwampTag verified · To Albert Gator · Dinner split",
+        "description": "QuackTag verified · To Albert Gator · Dinner split",
     })
     post(f"accounts/{account_id}/deposits", {
         "medium": "balance", "transaction_date": day(-1), "status": "completed", "amount": 40,

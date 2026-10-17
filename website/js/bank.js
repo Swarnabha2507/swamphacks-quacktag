@@ -12,7 +12,7 @@
 //   - transfers have no payee, so P2P = transfer out of sender + deposit into receiver
 //   - purchases don't change the account balance, so we add it up from the transactions
 
-const AUTH_TAGS = { verified: 'SwampTag verified', trusted: 'SwampTag trusted', unverified: 'No SwampTag check' };
+const AUTH_TAGS = { verified: 'QuackTag verified', trusted: 'QuackTag trusted', unverified: 'No QuackTag check' };
 
 function describe(mode, ...parts) {
   return [AUTH_TAGS[mode], ...parts].filter(Boolean).join(' · ');
@@ -20,7 +20,9 @@ function describe(mode, ...parts) {
 
 function parseDescription(desc = '') {
   const parts = desc.split(' · ');
-  const mode = Object.keys(AUTH_TAGS).find((k) => AUTH_TAGS[k] === parts[0]) || null;
+  // Rows written before the rebrand say "SwampTag …"; read them the same way.
+  const tag = parts[0].replace('SwampTag', 'QuackTag');
+  const mode = Object.keys(AUTH_TAGS).find((k) => AUTH_TAGS[k] === tag) || null;
   return { mode, parts: mode ? parts.slice(1) : parts };
 }
 

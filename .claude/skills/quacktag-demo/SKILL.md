@@ -1,14 +1,14 @@
 ---
-name: swamptag-demo
-description: Run the SwampTag demo end to end. Serve the site, connect the Pixel phone terminal (Web NFC over USB port forwarding), check key codes, run the demo checklist, and troubleshoot the phone terminal, Nessie, Auth0 and the old Arduino reader. Use when asked to run, test, demo or debug SwampTag.
+name: quacktag-demo
+description: Run the QuackTag demo end to end. Serve the site, connect the Pixel phone terminal (Web NFC over USB port forwarding), check key codes, run the demo checklist, and troubleshoot the phone terminal, Nessie, Auth0 and the old Arduino reader. Use when asked to run, test, demo or debug QuackTag.
 ---
 
-# SwampTag demo runbook
+# QuackTag demo runbook
 
 ## Paths
 - Site root: `website/`. Phone terminal page: `website/terminal.html`.
 - Server: `server.py`, with the relay and key check in `terminal.py`.
-- Old Arduino reader: CLI `$cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"`, FQBN `arduino:renesas_uno:unor4wifi`, sketch `arduino/SwampTag`.
+- Old Arduino reader: CLI `$cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"`, FQBN `arduino:renesas_uno:unor4wifi`, sketch `arduino/QuackTag`.
 
 ## Serve the site
 Run `python server.py` from the project root (in the background), then open http://localhost:8000 in Chrome or Edge.
@@ -33,11 +33,11 @@ Run `python server.py` from the project root (in the background), then open http
 - API quirks are in CLAUDE.md.
 
 ## Key device firmware (Feather RP2040 + RC522)
-- **Project:** `firmware/swamptag_key` (PlatformIO). CLI: `$pio = "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"`.
-- **Build:** `& $pio run -d firmware/swamptag_key -e key -e card`.
+- **Project:** `firmware/quacktag_key` (PlatformIO). CLI: `$pio = "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"`.
+- **Build:** `& $pio run -d firmware/quacktag_key -e key -e card`.
 - **Flash:**
-  1. Run `& $pio run -d firmware/swamptag_key -e <env> -t upload --upload-port COMx`. It usually fails at picotool (no Zadig driver), but it leaves the board in BOOTSEL.
-  2. Copy `firmware/swamptag_key/.pio/build/<env>/firmware.uf2` to the **RPI-RP2** drive.
+  1. Run `& $pio run -d firmware/quacktag_key -e <env> -t upload --upload-port COMx`. It usually fails at picotool (no Zadig driver), but it leaves the board in BOOTSEL.
+  2. Copy `firmware/quacktag_key/.pio/build/<env>/firmware.uf2` to the **RPI-RP2** drive.
   3. The board reboots, and its COM port number may change.
 - **Watch it:** log with PlatformIO's Python and pyserial (set DTR), or use `& $pio device monitor`.
   - Card writer: expect `FOB <uid>`, then `WROTE CARD ...`.

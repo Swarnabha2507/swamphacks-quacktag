@@ -1,6 +1,6 @@
-# SwampTag key and card format
+# QuackTag key and card format
 
-What the **key device** (Feather RP2040 + RC522, `firmware/swamptag_key`) writes onto the tags, and what the **phone** (the Pixel 6a reading with Web NFC at `pump.html` or `terminal.html`) and `server.py` check.
+What the **key device** (Feather RP2040 + RC522, `firmware/quacktag_key`) writes onto the tags, and what the **phone** (the Pixel 6a reading with Web NFC at `pump.html` or `terminal.html`) and `server.py` check.
 
 ## The key fob: a rotating code
 
@@ -17,7 +17,7 @@ ST1:<keyId>:<counter>:<code>
 | `counter` | Whole number that **goes up by 1 on every write**. Saved in the Feather's flash before each write, so a value is never reused. | `42` |
 | `code` | First **8 hex characters** (uppercase) of HMAC-SHA256 with `KEY_SECRET`, over `<keyId>:<counter>`. | `3F9A0C1D` |
 
-`KEY_SECRET` is the same random string in `.env` (laptop) and `firmware/swamptag_key/include/secrets.h` (key device).
+`KEY_SECRET` is the same random string in `.env` (laptop) and `firmware/quacktag_key/include/secrets.h` (key device).
 
 ## The fake debit card: a static record
 
@@ -34,7 +34,7 @@ SC1:<last4>:<holder>:<keyId>        e.g.  SC1:4821:ALBERT GATOR:A1B2C3D4
    - **The code matches** the HMAC for that key ID and counter. Otherwise: "Key code doesn't match".
    - **The counter is higher** than the last one accepted for that key. Otherwise: "Old key code, possibly a copied key". A copied fob carries an old code.
    - **The key is the card's paired key.** Otherwise: "This key isn't paired with this card".
-   - **If the card has an SC1 record but the fob has no ST1 code:** "This key has no SwampTag code". The fob needs to rest on its key device first.
+   - **If the card has an SC1 record but the fob has no ST1 code:** "This key has no QuackTag code". The fob needs to rest on its key device first.
 
 After an approved sale, the fob's code is used up. Put it back on the key device for a fresh one.
 
@@ -43,7 +43,7 @@ After an approved sale, the fob's code is used up. Put it back on the key device
 - Cards are paired with keys in the pump's ⚙ setup screen (`pairings.json`).
 - That still blocks a different fob, but it **can't** catch a copied fob. Use NTAG213/215 tags for that.
 
-## Tag layout (`firmware/swamptag_key/src/ndef_tag.cpp`)
+## Tag layout (`firmware/quacktag_key/src/ndef_tag.cpp`)
 - **NTAG21x / Ultralight:** the TLV `03 <len> <record> FE` from page 4.
 - **MIFARE Classic 1K** (the kit's fob and card), formatted the NFC Forum way on first write:
   - **Sector 0 (MAD):** key A `A0A1A2A3A4A5`, access bits `78 77 88`, GPB `C1`, AID `03E1` for sectors 1–2.

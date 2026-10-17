@@ -1,4 +1,4 @@
-# SwampTag self-quiz
+# QuackTag self-quiz
 
 Short questions on everything we've built so far. Try to answer out loud or on paper first, then click **Answer** to check.
 New sections get added as we build more.
@@ -7,7 +7,7 @@ New sections get added as we build more.
 
 ## 1. The big picture
 
-**1.1** What problem does the SwampTag key fob solve? Who has the card and PIN, and why does that matter?
+**1.1** What problem does the QuackTag key fob solve? Who has the card and PIN, and why does that matter?
 <details><summary>Answer</summary>
 A thief can copy a debit card with a skimmer and watch you type your PIN. The fob is a third thing they don't have, so risky payments stay blocked until the real owner taps it.
 </details>
@@ -52,7 +52,7 @@ No. Only the amount decides. Those reasons just explain why the payment looks un
 
 **3.2** What does "serial port busy" mean, and the two most common causes?
 <details><summary>Answer</summary>
-Another program already has the USB port open, and only one can use it at a time. Usually Arduino IDE's **Serial Monitor**, or a SwampTag tab in the browser that's connected to the reader.
+Another program already has the USB port open, and only one can use it at a time. Usually Arduino IDE's **Serial Monitor**, or a QuackTag tab in the browser that's connected to the reader.
 </details>
 
 **3.3** Why did **Disconnect → Connect** fail before the fix?
@@ -378,7 +378,7 @@ FAIL = it ran and something was wrong (fix it before the demo). SKIP = it didn't
 
 **12.1** Why does the demo page run on port 8001 instead of 8000?
 <details><summary>Answer</summary>
-Port 8000 is already used by the SwampTag site (`server.py`). Two servers can't listen on the same port.
+Port 8000 is already used by the QuackTag site (`server.py`). Two servers can't listen on the same port.
 </details>
 
 **12.2** You type text instead of recording. Which stage is skipped, and why is that useful for troubleshooting?

@@ -1,11 +1,11 @@
-# SwampTag (SwampHacks 2026 project)
+# QuackTag (SwampHacks 2026 project)
 
 RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the ledger.
 - **Tracks:** Hardware & Physical Computing, First Timers, Capital One – Best Use of Nessie, Best Use of Auth0.
 - **User:** a first-time hackathon participant who wants the hardware kept as simple as possible.
 - **Current hardware (since 2026-10-17):**
   - **The reader is the user's Pixel 6a.** It runs `website/terminal.html` (Web NFC). The phone needs no case.
-  - **Key dock case:** `cad/swamptag_dock.scad`, with STLs in `cad/stl/` and the guide in `cad/README.md`.
+  - **Key dock case:** `cad/quacktag_dock.scad`, with STLs in `cad/stl/` and the guide in `cad/README.md`.
     - Size: 66.6 × 70.8 × 26.7 mm.
     - The RC522 hangs upside down under the lid on 4 snap corners, with the fob pocket over its antenna. The Feather lies on floor pegs, with USB-C out the right wall.
     - A white lid has a hidden glow strip over the Feather.
@@ -13,7 +13,7 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - The Arduino + RC522 is now attached to the key and rewrites it at intervals. That **key device is a teammate's job**: don't build it, only agree the format (`docs/KEY_FORMAT.md`).
 
 ## Layout
-- `arduino/SwampTag/SwampTag.ino`: UNO R4 WiFi + RC522 sketch. LED matrix feedback, no other parts.
+- `arduino/QuackTag/QuackTag.ino`: UNO R4 WiFi + RC522 sketch. LED matrix feedback, no other parts.
 - `arduino/SETUP.md`: wiring table, upload steps, serial protocol.
 - `server.py`: stdlib server.
   - Serves `website/`. `/api/config` returns live status and the seeded IDs.
@@ -60,17 +60,17 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - `js/config.js`: `loadConfig()`, which fetches `/api/config` once per page.
   - `js/auth.js`: `Auth`, an optional Auth0 SPA login (SDK 2.27.0 from jsDelivr).
     - The Management API audience and scopes are requested at login.
-    - The key is kept in `user_metadata.swamptag_key`.
+    - The key is kept in `user_metadata.quacktag_key`.
     - A `sessionStorage` flag marks a demo-account session.
-- `firmware/swamptag_key/`: **PlatformIO** project for the Adafruit Feather RP2040 + RC522 (Philhower core via maxgerhardt's platform).
+- `firmware/quacktag_key/`: **PlatformIO** project for the Adafruit Feather RP2040 + RC522 (Philhower core via maxgerhardt's platform).
   - `env:key` rewrites the fob with `ST1` every 15 s while it rests on the reader. `env:card` (`-D CARD_WRITER`) writes the fake debit card (`SC1`).
   - `src/ndef_tag.cpp`: NDEF Text read/write on NTAG/Ultralight and **MIFARE Classic 1K** (NFC Forum MAD format; key B stays FF…FF; MAD CRC-8 checked against the NFC Forum example).
   - `include/secrets.h` is gitignored and holds the same `KEY_SECRET` as `.env`.
-  - **Build:** `%USERPROFILE%\.platformio\penv\Scripts\pio.exe run -d firmware/swamptag_key -e key -e card`.
-  - **Flash:** `pio run -d firmware/swamptag_key -e <env> -t upload` works with **no Zadig driver**.
+  - **Build:** `%USERPROFILE%\.platformio\penv\Scripts\pio.exe run -d firmware/quacktag_key -e key -e card`.
+  - **Flash:** `pio run -d firmware/quacktag_key -e <env> -t upload` works with **no Zadig driver**.
     - `upload_protocol = custom` runs `tools/uf2_upload.py`, which does a 1200-baud touch on the Feather's port (USB IDs 239A/2E8A), waits for the **RPI-RP2** drive (it was D:) and copies `firmware.uf2`.
     - **If the port is "busy" or "Access denied":** a serial logger or monitor still holds it. My old `scratchpad/serial_log.py` processes did this twice; stop them first.
-  - **VS Code:** open `SwampTag.code-workspace`. Its second folder is `firmware/swamptag_key`, so the PlatformIO extension finds `platformio.ini` (it only checks workspace-folder roots). PlatformIO Core is at `~/.platformio` and the extension uses it.
+  - **VS Code:** open `QuackTag.code-workspace`. Its second folder is `firmware/quacktag_key`, so the PlatformIO extension finds `platformio.ini` (it only checks workspace-folder roots). PlatformIO Core is at `~/.platformio` and the extension uses it.
   - The Feather's serial port moves between COM4 and COM5 after reflashing.
 - `website/pump.html` + `js/pump.js`: the **gas-station checkout** on the phone.
   - Steps: items (fuel $20/$40/$60 or gallons at $3, store items) → Charge → card → PIN pad (dots only) → key → receipt or decline.
@@ -87,10 +87,10 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
     - The result includes `nessie: {purchaseId, balanceAfter}` for the receipt.
   - Every Nessie call is logged in memory (`log_nessie_call`, with source dashboard / pump / live check). `GET /api/nessie-log` serves it to the dashboard's **Capital One Nessie** panel, which polls every 3 s and refreshes Recent activity when a pump sale is posted.
   - Nessie's empty-list 404 shows as "empty".
-- `firmware/swamptag_key/src/wiring_test.cpp` (`env:wiring`): bit-bangs SPI over every plausible pin combination and reports which Feather pins the RC522 wires are on. The key and card firmware retry the RC522 every 2 s and print its version register: 0x00 / 0xFF means a wiring problem.
+- `firmware/quacktag_key/src/wiring_test.cpp` (`env:wiring`): bit-bangs SPI over every plausible pin combination and reports which Feather pins the RC522 wires are on. The key and card firmware retry the RC522 every 2 s and print its version register: 0x00 / 0xFF means a wiring problem.
 - `docs/KEY_FORMAT.md`: the ST1 key record, the SC1 card record, the checks, the MIFARE Classic layout.
 - `.claude/skills/redesign-existing-projects/`: UI audit skill (MIT, from Leonxlnx/taste-skill), used for the cleanup pass.
-- `STYLE_GUIDE.md`: tokens and components. Banking-app look: gradient tiles, navy/blue, red only for accents and danger. Geist font, square badges, tabular figures.
+- `STYLE_GUIDE.md`: tokens and components. Banking-app look: gradient tiles, navy/blue with duck-yellow + beak-orange accents (logo: website/logo.svg), red only for danger. Geist font, square badges, tabular figures.
 
 ## Nessie facts (checked against the live API, 2026-10-16)
 - **Base URL:** `https://api.nessieisreal.com`. Plain HTTP refuses connections. Docs are at https://prod.nessieisreal.com/docs; the OpenAPI JSON is 403.
@@ -101,7 +101,7 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
 - **Deposit body:** `{medium, transaction_date, status, amount, description}`.
 - **Bills** need `recurring_date` on create, or GET fails server-side. `upcoming_payment_date` is rejected on create. `PUT /bills/{id} {status:"completed"}` works.
 - **Purchases don't change `account.balance`.** The dashboard computes `openingBalance + deposits − purchases − transfers`.
-- How a payment was authorized is stored in `description`: `SwampTag verified` / `SwampTag trusted` / `No SwampTag check`, joined with ` · ` (see `describe()` / `parseDescription()` in bank.js).
+- How a payment was authorized is stored in `description`: `QuackTag verified` / `QuackTag trusted` / `No QuackTag check`, joined with ` · ` (see `describe()` / `parseDescription()` in bank.js).
 
 ## Reader protocol
 The same words are used over the phone relay and the old USB serial link (115200 baud, newline-terminated):

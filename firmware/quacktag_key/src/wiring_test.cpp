@@ -91,7 +91,7 @@ bool report(uint8_t ssGpio, const char *ssLabel, uint8_t v) {
 
 void scan() {
   Serial.println();
-  Serial.println("=== SwampTag wiring finder (takes ~15 s) ===");
+  Serial.println("=== QuackTag wiring finder (takes ~15 s) ===");
   const uint8_t n = sizeof(PINS) / sizeof(PINS[0]);
   for (uint8_t a = 0; a < 6; a++)
     for (uint8_t b = 0; b < 6; b++)

@@ -57,7 +57,7 @@ MODELS_TO_TRY = list(dict.fromkeys([SETTINGS.get("GEMINI_MODEL", "gemini-flash-l
 # Gemini
 # ---------------------------------------------------------------------------
 
-SYSTEM_INSTRUCTION = """You are the scam check inside SwampTag, a banking app for older adults.
+SYSTEM_INSTRUCTION = """You are the scam check inside QuackTag, a banking app for older adults.
 The customer is about to make a payment that is over their own safety limit (a card purchase
 or a money transfer), and explains in their own words why.
 Decide whether it matches a common scam: grandparent / family emergency, government or bank

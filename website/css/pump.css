@@ -388,3 +388,8 @@ h1, h2, h3, p { margin: 0; }
   .pin-pad { grid-template-columns: repeat(3, 68px); gap: 12px 20px; }
   .pin-pad button { width: 68px; height: 68px; }
 }
+
+/* QuackTag branding on the pump */
+.duck-mark { border-radius: 5px; flex: none; }
+.start .powered { position: absolute; bottom: calc(28px + env(safe-area-inset-bottom)); display: inline-flex; align-items: center; gap: 8px; font-size: 0.86rem; opacity: 0.9; }
+.start .powered .duck-mark { border-radius: 6px; }

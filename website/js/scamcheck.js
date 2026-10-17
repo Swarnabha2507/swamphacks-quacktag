@@ -1,4 +1,4 @@
-// Scam check: before a large transfer, SwampTag asks "Why are you sending this money?"
+// Scam check: before a large transfer, QuackTag asks "Why are you sending this money?"
 // Red-flag answers match common scams that target older adults (grandparent,
 // government impostor, romance and prize scams). A flagged transfer:
 //   - shows a plain-language warning and reads it aloud (browser text-to-speech)

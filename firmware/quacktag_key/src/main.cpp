@@ -1,4 +1,4 @@
-// SwampTag key device: Adafruit Feather RP2040 + RC522.
+// QuackTag key device: Adafruit Feather RP2040 + RC522.
 //
 // env:key  (default)  While the key fob rests on the reader, writes a fresh code onto it
 //                     every 15 s:  ST1:<keyId>:<counter>:<code>

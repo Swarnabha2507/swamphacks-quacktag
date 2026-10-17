@@ -1,4 +1,4 @@
-// SwampTag dashboard: renders the account and runs the tap-to-approve flow.
+// QuackTag dashboard: renders the account and runs the tap-to-approve flow.
 // Money data comes from Bank (Nessie or offline). Key, settings, alerts and
 // blocked attempts live in Store.
 
@@ -49,7 +49,7 @@ async function refresh() {
   renderAll();
 }
 
-// Bank rows plus the rows only SwampTag knows about (blocked attempts, requests), newest first.
+// Bank rows plus the rows only QuackTag knows about (blocked attempts, requests), newest first.
 function allRows() {
   return [...snap.transactions, ...state.localRows].sort((a, b) =>
     new Date(b.date) - new Date(a.date) || (b.order ?? 0) - (a.order ?? 0));
@@ -122,9 +122,9 @@ function renderTransactions(highlightNewest) {
     // Only Verified and Blocked get color; everything else is a quiet gray line.
     let status = '';
     if (tx.status === 'approved') {
-      status = tx.verified ? '<div class="tx-status verified">✓ Verified with SwampTag</div>'
+      status = tx.verified ? '<div class="tx-status verified">✓ Verified with QuackTag</div>'
         : tx.trusted ? '<div class="tx-status">Trusted · no tap needed</div>'
-        : '<div class="tx-status">No SwampTag check</div>';
+        : '<div class="tx-status">No QuackTag check</div>';
     } else if (tx.status === 'blocked') status = '<div class="tx-status blocked">✕ Blocked</div>';
     else if (tx.status === 'received') status = '<div class="tx-status">Received</div>';
     else if (tx.status === 'pending') status = '<div class="tx-status">Requested</div>';
@@ -210,7 +210,7 @@ function renderKeyPanel() {
   const hasKey = Boolean(state.keyUid);
   $('#key-uid').textContent = hasKey ? state.keyUid : 'None';
   $('#key-strip-dot').className = `status-dot ${hasKey ? 'on' : 'off'}`;
-  $('#key-tile-status').textContent = hasKey ? `SwampTag key ...${state.keyUid.slice(-4)} linked` : 'No key linked';
+  $('#key-tile-status').textContent = hasKey ? `QuackTag key ...${state.keyUid.slice(-4)} linked` : 'No key linked';
   $('#key-tile-caption').textContent = hasKey ? 'Risky payments from card ...4821 need your tap' : 'Card ...4821 is unprotected';
   $('#register-btn').textContent = hasKey ? 'Replace key' : 'Link a key';
   $('#unlink-btn').classList.toggle('hidden', !hasKey);
@@ -342,7 +342,7 @@ function showResult(kind, title, body, extraHtml = '') {
 function handleLine(line) {
   if (line === 'READY') {
     readerError = false;
-    toast('SwampTag reader is ready');
+    toast('QuackTag reader is ready');
   } else if (line === 'ERROR:READER') {
     readerError = true;
     toast('RFID reader not detected. Check the RC522 wiring.');
@@ -449,7 +449,7 @@ function requestApproval(payment, risk) {
         ${reasons.map((r) => `<span class="badge ${risk.level === 'high' ? 'badge-red' : 'badge-amber'}">${escapeHtml(r)}</span>`).join('')}
       </div>
       ${TAP_ICON}
-      <div class="approval-prompt">Tap your SwampTag key to approve</div>
+      <div class="approval-prompt">Tap your QuackTag key to approve</div>
       <div class="countdown"><div id="cd-bar"></div></div>
       <div class="countdown-text" id="cd-text">Expires in ${APPROVAL_SECONDS}s</div>
       <div class="cancel-row"><button class="btn btn-ghost btn-sm" id="cancel-approval">Cancel</button></div>
@@ -465,7 +465,7 @@ function requestApproval(payment, risk) {
     $('#cd-bar').style.transform = `scaleX(${remaining / APPROVAL_SECONDS})`;
     $('#cd-text').textContent = `Expires in ${remaining}s`;
     if (remaining <= 0) {
-      if (payment.fraud) finish('blocked', 'No SwampTag key was tapped');
+      if (payment.fraud) finish('blocked', 'No QuackTag key was tapped');
       else finish('timeout');
     }
   }, 1000);
@@ -490,11 +490,11 @@ function requestApproval(payment, risk) {
       await commit(payment, 'verified');
       Store.addAlert('good', `Approved ${money.format(payment.amount)} with your key`, payment.name);
       renderShield();
-      showResult('good', 'Payment approved', `${money.format(payment.amount)} to ${payment.name}. Verified with your SwampTag key.`);
+      showResult('good', 'Payment approved', `${money.format(payment.amount)} to ${payment.name}. Verified with your QuackTag key.`);
     } else if (result === 'blocked') {
       link.send('DENY', { reason });
       recordBlocked(payment, reason);
-      showResult('bad', 'Payment blocked', `${reason}. Your ${money.format(payment.amount)} stayed in your account and the attempt is logged in SwampTag Shield.`);
+      showResult('bad', 'Payment blocked', `${reason}. Your ${money.format(payment.amount)} stayed in your account and the attempt is logged in QuackTag Shield.`);
     } else {
       link.send('IDLE');
       closeModal();
@@ -505,13 +505,13 @@ function requestApproval(payment, risk) {
 
 // With no key linked, payments go straight through, like a normal debit card today.
 async function payWithoutKey(payment) {
-  showResult('busy', 'Processing…', 'No SwampTag key is linked, so nothing stops this payment.');
+  showResult('busy', 'Processing…', 'No QuackTag key is linked, so nothing stops this payment.');
   await commit(payment, 'unverified');
   if (payment.fraud) {
-    Store.addAlert('danger', `Fraudulent charge: ${money.format(payment.amount)}`, `${payment.name} · ${payment.place}. Your card wasn't protected by SwampTag.`);
+    Store.addAlert('danger', `Fraudulent charge: ${money.format(payment.amount)}`, `${payment.name} · ${payment.place}. Your card wasn't protected by QuackTag.`);
     renderShield();
     const modal = showResult('bad', 'The thief got through',
-      `A copied card and a stolen PIN were enough to take ${money.format(payment.amount)}. Link a SwampTag key to stop this.`,
+      `A copied card and a stolen PIN were enough to take ${money.format(payment.amount)}. Link a QuackTag key to stop this.`,
       '<button class="btn btn-primary btn-block stack-gap" id="link-now">Link a key now</button>');
     modal.querySelector('#link-now').addEventListener('click', registerFlow);
   } else {
@@ -564,7 +564,7 @@ function sendFlow(contactIndex) {
     const amount = readDollars(modal.querySelector('#send-amount'));
     if (!(amount > 0)) return toast('Enter an amount of at least $1.');
     const c = getContact();
-    const note = modal.querySelector('#send-note').value.trim() || 'Sent with SwampTag';
+    const note = modal.querySelector('#send-note').value.trim() || 'Sent with QuackTag';
     const payment = { kind: 'transfer', name: c.name, initials: c.initials, place: 'Peer-to-peer', note, contact: c, amount };
     // $200+ (Scam check) or over the tap limit: one voice check, then the normal payment flow.
     if (state.scamCheck && (needsScamCheck(amount) || amount > state.tapLimit)) voiceCheckFlow(payment);
@@ -603,7 +603,7 @@ function voiceCheckFlow(payment) {
   const modal = openModal(`
     <div class="call">
       <div class="call-top">
-        <span class="call-live"><i></i>SwampTag Safety Line</span>
+        <span class="call-live"><i></i>QuackTag Safety Line</span>
         <span class="call-timer num" id="call-timer">0:00</span>
       </div>
       <div class="call-hero">
@@ -656,7 +656,7 @@ function voiceCheckFlow(payment) {
     const checked = { ...payment, voiceChecked: true };
     if (!review.flag) {
       if (review.offline) return offlineAllClear(checked, review);
-      bubble('agent', 'Thank you, that sounds fine. Last step: tap your SwampTag key.');
+      bubble('agent', 'Thank you, that sounds fine. Last step: tap your QuackTag key.');
       setTimeout(() => {
         closeModal();
         toast(`Scam review (${review.source}): no red flags found.`);
@@ -841,7 +841,7 @@ function scamWarning(payment, review) {
 
   const purchase = payment.kind === 'purchase';
   const thing = purchase ? 'purchase' : 'transfer';
-  const spoken = `Stop. This looks like a scam. ${review.warning} If you still want to ${purchase ? 'pay' : 'send this money'}, please call SwampTag fraud support first, at ${FRAUD_LINE.spoken}.`;
+  const spoken = `Stop. This looks like a scam. ${review.warning} If you still want to ${purchase ? 'pay' : 'send this money'}, please call QuackTag fraud support first, at ${FRAUD_LINE.spoken}.`;
   const modal = openModal(`
     <div class="scam-warning">
       <div class="result-icon bad">!</div>
@@ -853,7 +853,7 @@ function scamWarning(payment, review) {
       <p class="modal-text">${escapeHtml(review.warning)}</p>
       <div class="call-box">
         <strong>Still want to ${purchase ? 'pay' : 'send'} ${money.format(payment.amount)}?</strong>
-        <span>Talk to SwampTag fraud support first. We'll talk it through with you and give you a code.</span>
+        <span>Talk to QuackTag fraud support first. We'll talk it through with you and give you a code.</span>
         <span class="call-number">${FRAUD_LINE.label}</span>
         <button type="button" class="btn btn-outline btn-sm" id="rep-call">📞 Talk to a representative</button>
         <span class="rep-status" id="rep-status" aria-live="polite"></span>
@@ -974,7 +974,7 @@ function payBillFlow(bill) {
 function registerFlow() {
   const modal = openModal(`
     <div class="approval">
-      ${modalHead('Link your SwampTag key')}
+      ${modalHead('Link your QuackTag key')}
       ${TAP_ICON}
       <div class="approval-prompt">Tap the key fob you want to link</div>
       <p class="approval-note">From now on, payments from card ...4821 will need this key when something looks risky.</p>
@@ -992,7 +992,7 @@ function registerFlow() {
       pending = null;
       link.send('OK');
       Store.set('keyUid', uid);
-      Store.addAlert('good', 'SwampTag key linked', `Key ${uid} now protects card ...4821.`);
+      Store.addAlert('good', 'QuackTag key linked', `Key ${uid} now protects card ...4821.`);
       renderAll();
       tapLimitFlow({ afterLink: true });
       syncKeyToProfile(uid);
@@ -1026,13 +1026,13 @@ function tapLimitFlow({ afterLink = false } = {}) {
 async function unlinkKey() {
   const ok = await confirmModal('Unlink this key?', 'Payments from card ...4821 will no longer need a tap until you link a key again.', 'Unlink key', { danger: true });
   if (!ok) return;
-  Store.addAlert('info', 'SwampTag key unlinked', `Key ${state.keyUid} was removed.`);
+  Store.addAlert('info', 'QuackTag key unlinked', `Key ${state.keyUid} was removed.`);
   Store.set('keyUid', null);
   renderAll();
   syncKeyToProfile(null);
 }
 
-// Saves the linked key to the signed-in user's Auth0 profile (user_metadata.swamptag_key).
+// Saves the linked key to the signed-in user's Auth0 profile (user_metadata.quacktag_key).
 async function syncKeyToProfile(uid) {
   if (!Auth.enabled || Auth.usingDemo()) return;
   try {

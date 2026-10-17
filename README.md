@@ -1,4 +1,4 @@
-# SwampTag
+# QuackTag
 
 **Tap-to-approve protection for debit cards, built on Capital One's Nessie API.**
 
@@ -14,12 +14,12 @@ Built at SwampHacks (University of Florida) for these tracks:
 
 ## The solution
 **1. A physical key with a rotating code.**
-- SwampTag links the card to an RFID key. A small Arduino device attached to the key **rewrites a fresh code onto it at intervals**.
-- Risky payments are held until the owner holds the key to the **SwampTag terminal**: a Pixel phone that acts as the terminal's screen and NFC reader.
+- QuackTag links the card to an RFID key. A small Arduino device attached to the key **rewrites a fresh code onto it at intervals**.
+- Risky payments are held until the owner holds the key to the **QuackTag terminal**: a Pixel phone that acts as the terminal's screen and NFC reader.
 - A thief with a cloned card and your PIN doesn't have the key. A **copied** key carries an old code that the terminal refuses, so the payment is **blocked** and logged.
 
 **2. Smart taps with your own tap limit.**
-- Right after linking the fob, SwampTag asks *"How much can you spend before a tap is needed?"* It starts at **$200**, and you can change it any time under **Security → Smart taps → Change**.
+- Right after linking the fob, QuackTag asks *"How much can you spend before a tap is needed?"* It starts at **$200**, and you can change it any time under **Security → Smart taps → Change**.
 - Payments at or under the limit go straight through. Anything over it needs the fob. This applies to card payments, sending money and bills alike.
 - When a tap is needed, Nessie purchase history and merchant locations explain what looks off.
 
@@ -30,7 +30,7 @@ Built at SwampHacks (University of Florida) for these tracks:
 | $390 at a gas station in Orlando | asks for a tap ("Over your $200 tap limit · New merchant · 96 mi from home · 15× your usual spend") |
 | Sending $500 or paying $725 rent | asks for a tap |
 
-**3. Voice scam check, built for older adults.** Before a payment over your tap limit, or any transfer of **$200 or more**, SwampTag asks *"What is this for?"*
+**3. Voice scam check, built for older adults.** Before a payment over your tap limit, or any transfer of **$200 or more**, QuackTag asks *"What is this for?"*
 - **Say it or type it.** Press 🎤 and explain out loud. **Whisper** (running on the laptop) turns the speech into text.
 - **Gemini reviews the explanation** and answers with a risk level, the likely scam type and a plain-language warning.
   - If Gemini can't be reached, offline phrase rules take over, so the demo never gets stuck.
@@ -43,7 +43,7 @@ Built at SwampHacks (University of Florida) for these tracks:
 
 **4. Real sign-in.** Auth0 handles login (Google, MFA, passkeys). The linked fob is saved in the user's Auth0 profile, so it follows them to any browser.
 
-*Pitch line: Auth0 protects who you are. SwampTag protects what you pay, and how you pay it.*
+*Pitch line: Auth0 protects who you are. QuackTag protects what you pay, and how you pay it.*
 
 ## How it's built
 For a full walkthrough of every part, see **[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)**.
@@ -62,10 +62,10 @@ For a full walkthrough of every part, see **[docs/HOW_IT_WORKS.md](docs/HOW_IT_W
 | Part | Files |
 |---|---|
 | Gas pump (phone) | [website/pump.html](website/pump.html) + [js/pump.js](website/js/pump.js): pick items → card → PIN → key, on the Pixel with Web NFC |
-| Key device | [firmware/swamptag_key](firmware/swamptag_key/README.md): Feather RP2040 + RC522 (PlatformIO). Rewrites the fob every 15 s; second build writes the fake debit card |
+| Key device | [firmware/quacktag_key](firmware/quacktag_key/README.md): Feather RP2040 + RC522 (PlatformIO). Rewrites the fob every 15 s; second build writes the fake debit card |
 | Phone terminal | [website/terminal.html](website/terminal.html) + [js/terminal.js](website/js/terminal.js): runs on the Pixel, reads the key with Web NFC |
 | Key format | [docs/KEY_FORMAT.md](docs/KEY_FORMAT.md): what the key device writes and how the terminal checks it |
-| Old USB reader | [arduino/SwampTag/SwampTag.ino](arduino/SwampTag/SwampTag.ino), [arduino/SETUP.md](arduino/SETUP.md) |
+| Old USB reader | [arduino/QuackTag/QuackTag.ino](arduino/QuackTag/QuackTag.ino), [arduino/SETUP.md](arduino/SETUP.md) |
 | Server | [server.py](server.py): serves the site, forwards `/api/nessie/*` with the key, passes the Auth0 settings, and relays between the dashboard and the phone ([terminal.py](terminal.py), which also checks key codes). Python standard library only |
 | Nessie setup | [tools/seed_nessie.py](tools/seed_nessie.py) |
 | Website | [website/](website/), with one file per job in `js/`: |
@@ -77,8 +77,8 @@ For a full walkthrough of every part, see **[docs/HOW_IT_WORKS.md](docs/HOW_IT_W
 | | • [serial.js](website/js/serial.js): the old USB reader |
 | Look and feel | [STYLE_GUIDE.md](STYLE_GUIDE.md) |
 
-### How SwampTag uses Nessie
-| Nessie | SwampTag feature |
+### How QuackTag uses Nessie
+| Nessie | QuackTag feature |
 |---|---|
 | Customers + Accounts | Albert Gator's checking account plus three friends' accounts |
 | Merchants (with `geocode`) | Pay in store options. Distance from home feeds the risk check |
@@ -133,11 +133,11 @@ Only **approved** payments are written to Nessie. Blocked money never moves.
 
 ## Gas-station demo (about 2 minutes)
 **Setup:**
-- Flash the key device ([firmware/swamptag_key](firmware/swamptag_key/README.md)), write the fake debit card, and rest the fob on the key device.
+- Flash the key device ([firmware/quacktag_key](firmware/quacktag_key/README.md)), write the fake debit card, and rest the fob on the key device.
 - On the phone, open `localhost:8000/pump.html` and tap **Start pump**.
 
 1. Pick **Regular $40** and a coffee, then **Charge $42**.
-2. **Tap the debit card** on the back of the phone. It shows "SwampTag Debit •••• 4821".
+2. **Tap the debit card** on the back of the phone. It shows "QuackTag Debit •••• 4821".
 3. Enter the **PIN** (1234). Only dots show, which matters because a shoulder-surfer is part of the story.
 4. **Scan the key fob** → ✓ **Approved**. The sale lands in Nessie at "Swamp Gas & Go".
 5. **The attack:** start a new sale and use the card and PIN, but scan the fob **without** putting it back on its key device. Its code is now old, like a copied fob → ✗ "Old key code, possibly a copied key".
@@ -148,7 +148,7 @@ Only **approved** payments are written to Nessie. Blocked money never moves.
 2. **Without protection:** click **Simulate fraud**. The charge goes through.
 3. **Link a key:** click **Link a key**, then hold the key to the back of the phone. The key is saved to your Auth0 profile. When asked how much you can spend before a tap is needed, enter **$50**.
 4. **Smart tap:** Pay in store → Starbucks $6. Approved with no tap.
-5. **Tap needed:** Pay in store → UF Bookstore $90. The **phone terminal** shows $90.00 and "Hold your SwampTag key to the back of the phone". Hold the key there → ✓ on the phone (it says "Approved"), and the purchase lands in Nessie.
+5. **Tap needed:** Pay in store → UF Bookstore $90. The **phone terminal** shows $90.00 and "Hold your QuackTag key to the back of the phone". Hold the key there → ✓ on the phone (it says "Approved"), and the purchase lands in Nessie.
 6. **The attack:** Simulate fraud. The thief holds up a **copied key** (an old code) → the terminal shows ✗ "Old key code, possibly a copied key", blocked.
 7. **Scam check:** Send **$500** to Diego. Choose "A family member says they are in trouble", then type "keep it secret".
    - The warning is read aloud and Angel gets a heads-up.
