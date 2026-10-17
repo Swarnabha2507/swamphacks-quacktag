@@ -1,96 +1,68 @@
 // SwampTag — RFID second factor for debit payments
-// Board: Arduino UNO R4 WiFi   Reader: RC522 (SPI)
+// Board: Adafruit Feather RP2040   Reader: RC522 (SPI)
+// (The UNO R4 WiFi version with the LED matrix is arduino/SwampTag/SwampTag.ino.)
+//
+// Wiring (RC522 -> Feather RP2040):
+//   SDA  -> 10      (right header)        SCK  -> SCK  (left header)
+//   MOSI -> MO      (left header)         MISO -> MI   (left header)
+//   RST  -> 9       (right header)        GND  -> GND  (left header)
+//   3.3V -> 3V      (left header)         IRQ  -> not connected
 //
 // Serial protocol (115200 baud, one message per line):
-//   Arduino -> website:  READY            reader is up
+//   Feather -> website:  READY            reader is up
 //                        ERROR:READER     RC522 not detected (check wiring)
 //                        TAG:04A1B2C3     a tag was tapped (UID in hex)
-//   website -> Arduino:  WAIT             show "tap your key" animation
-//                        OK               show check mark
-//                        DENY             show X
-//                        IDLE             back to the lock icon
+//   website -> Feather:  WAIT             blue pulse: "tap your key"
+//                        OK               green
+//                        DENY             red
+//                        IDLE             dim white
+//
+// The Feather has no LED matrix, so feedback uses its onboard NeoPixel (colour LED).
 
 #include <SPI.h>
 #include <MFRC522.h>
-#include "Arduino_LED_Matrix.h"
+#include <Adafruit_NeoPixel.h>
 
 const uint8_t SS_PIN = 10;
 const uint8_t RST_PIN = 9;
+
+#ifdef PIN_NEOPIXEL
+const uint8_t PIXEL_PIN = PIN_NEOPIXEL;  // defined by the Feather RP2040 board package
+#else
+const uint8_t PIXEL_PIN = 16;            // GP16 on the Feather RP2040
+#endif
 
 // Optional: wire a piezo buzzer to D8 + GND and set this to 1.
 #define USE_BUZZER 0
 const uint8_t BUZZER_PIN = 8;
 
 const unsigned long REPEAT_IGNORE_MS = 1500;  // ignore the same tag tapped twice quickly
-const unsigned long RESULT_SHOW_MS = 3000;    // how long to show the check / X
-const unsigned long ANIM_STEP_MS = 180;       // speed of the "tap" ripple
+const unsigned long RESULT_SHOW_MS = 3000;    // how long to show green / red
+const unsigned long PULSE_STEP_MS = 20;       // speed of the blue "tap" pulse
+const unsigned long ERROR_BLINK_MS = 400;     // red blink when the reader is missing
 
 MFRC522 rfid(SS_PIN, RST_PIN);
-ArduinoLEDMatrix matrix;
+Adafruit_NeoPixel pixel(1, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
-enum Mode { MODE_IDLE, MODE_WAITING, MODE_RESULT };
+enum Mode { MODE_IDLE, MODE_WAITING, MODE_RESULT, MODE_ERROR };
 Mode mode = MODE_IDLE;
 
-uint8_t frame[8][12];
+bool readerOk = false;
+bool usbWasOpen = false;
 unsigned long resultUntil = 0;
-unsigned long lastAnimAt = 0;
-uint8_t animStep = 0;
+unsigned long lastStepAt = 0;
+uint8_t pulseLevel = 0;
+int8_t pulseDir = 4;
 
 String lastUid = "";
 unsigned long lastUidAt = 0;
 String inbox = "";
 
-// ---------- LED matrix icons (8 rows x 12 columns) ----------
+// ---------- NeoPixel ----------
 
-const uint8_t ICON_LOCK[8][12] = {
-  {0,0,0,0,1,1,1,1,0,0,0,0},
-  {0,0,0,1,0,0,0,0,1,0,0,0},
-  {0,0,0,1,0,0,0,0,1,0,0,0},
-  {0,0,1,1,1,1,1,1,1,1,0,0},
-  {0,0,1,1,1,1,1,1,1,1,0,0},
-  {0,0,1,1,1,0,0,1,1,1,0,0},
-  {0,0,1,1,1,1,1,1,1,1,0,0},
-  {0,0,1,1,1,1,1,1,1,1,0,0},
-};
-
-const uint8_t ICON_CHECK[8][12] = {
-  {0,0,0,0,0,0,0,0,0,0,0,0},
-  {0,0,0,0,0,0,0,0,0,0,1,0},
-  {0,0,0,0,0,0,0,0,0,1,1,0},
-  {0,0,0,0,0,0,0,0,1,1,0,0},
-  {0,1,0,0,0,0,0,1,1,0,0,0},
-  {0,1,1,0,0,0,1,1,0,0,0,0},
-  {0,0,1,1,0,1,1,0,0,0,0,0},
-  {0,0,0,1,1,1,0,0,0,0,0,0},
-};
-
-const uint8_t ICON_X[8][12] = {
-  {0,0,1,0,0,0,0,0,0,1,0,0},
-  {0,0,0,1,0,0,0,0,1,0,0,0},
-  {0,0,0,0,1,0,0,1,0,0,0,0},
-  {0,0,0,0,0,1,1,0,0,0,0,0},
-  {0,0,0,0,0,1,1,0,0,0,0,0},
-  {0,0,0,0,1,0,0,1,0,0,0,0},
-  {0,0,0,1,0,0,0,0,1,0,0,0},
-  {0,0,1,0,0,0,0,0,0,1,0,0},
-};
-
-void showIcon(const uint8_t icon[8][12]) {
-  memcpy(frame, icon, sizeof(frame));
-  matrix.renderBitmap(frame, 8, 12);
-}
-
-// Draws a square ring around the centre of the matrix. size 1..4.
-void showRing(uint8_t size) {
-  memset(frame, 0, sizeof(frame));
-  int top = 4 - size, bottom = 3 + size;
-  int left = 6 - size, right = 5 + size;
-  for (int r = top; r <= bottom; r++) {
-    for (int c = left; c <= right; c++) {
-      if (r == top || r == bottom || c == left || c == right) frame[r][c] = 1;
-    }
-  }
-  matrix.renderBitmap(frame, 8, 12);
+void showColor(uint8_t r, uint8_t g, uint8_t b) {
+  pixel.setPixelColor(0, pixel.Color(r, g, b));
+  pixel.show();
 }
 
 void beep(unsigned int hz, unsigned long ms) {
@@ -102,24 +74,25 @@ void beep(unsigned int hz, unsigned long ms) {
 // ---------- modes ----------
 
 void enterIdle() {
-  mode = MODE_IDLE;
-  showIcon(ICON_LOCK);
+  mode = readerOk ? MODE_IDLE : MODE_ERROR;
+  if (readerOk) showColor(12, 12, 12);  // dim white
 }
 
 void enterWaiting() {
   mode = MODE_WAITING;
-  animStep = 0;
-  lastAnimAt = 0;
+  pulseLevel = 0;
+  pulseDir = 4;
+  lastStepAt = 0;
 }
 
 void enterResult(bool approved) {
   mode = MODE_RESULT;
   resultUntil = millis() + RESULT_SHOW_MS;
   if (approved) {
-    showIcon(ICON_CHECK);
+    showColor(0, 120, 0);  // green
     beep(1800, 120);
   } else {
-    showIcon(ICON_X);
+    showColor(150, 0, 0);  // red
     beep(300, 600);
   }
 }
@@ -168,34 +141,46 @@ void readTag() {
   Serial.println(uid);
 }
 
+// The Feather's USB serial drops anything printed before the website opens the
+// port, so (re)announce the reader's status every time the port is opened.
+void announceWhenUsbOpens() {
+  bool open = (bool)Serial;
+  if (open && !usbWasOpen) Serial.println(readerOk ? "READY" : "ERROR:READER");
+  usbWasOpen = open;
+}
+
 // ---------- main ----------
 
 void setup() {
   Serial.begin(115200);
+  pixel.begin();
+  pixel.setBrightness(80);
   SPI.begin();
   rfid.PCD_Init();
-  matrix.begin();
 
   byte version = rfid.PCD_ReadRegister(MFRC522::VersionReg);
-  if (version == 0x00 || version == 0xFF) {
-    Serial.println("ERROR:READER");
-    showIcon(ICON_X);
-  } else {
-    Serial.println("READY");
-    enterIdle();
-  }
+  readerOk = !(version == 0x00 || version == 0xFF);
+  enterIdle();
 }
 
 void loop() {
+  announceWhenUsbOpens();
   readSerial();
-  readTag();
+  if (readerOk) readTag();
 
   unsigned long now = millis();
-  if (mode == MODE_WAITING && now - lastAnimAt >= ANIM_STEP_MS) {
-    lastAnimAt = now;
-    showRing(animStep % 4 + 1);
-    animStep++;
+  if (mode == MODE_WAITING && now - lastStepAt >= PULSE_STEP_MS) {
+    lastStepAt = now;
+    pulseLevel += pulseDir;
+    if (pulseLevel >= 160) pulseDir = -4;
+    else if (pulseLevel <= 4) pulseDir = 4;
+    showColor(0, pulseLevel / 4, pulseLevel);  // blue breathing
   } else if (mode == MODE_RESULT && now >= resultUntil) {
     enterIdle();
+  } else if (mode == MODE_ERROR && now - lastStepAt >= ERROR_BLINK_MS) {
+    lastStepAt = now;
+    static bool on = false;
+    on = !on;
+    showColor(on ? 150 : 0, 0, 0);  // blinking red: RC522 not found
   }
 }

@@ -34,7 +34,7 @@ SwampTag adds a **physical key** to a debit card. When a payment looks risky (by
 
 ## 2. The hardware: `arduino/SwampTag/SwampTag.ino`
 
-`arduino/TagReader/TagReader.ino` is an identical copy.
+`arduino/TagReader/TagReader.ino` is the **Adafruit Feather RP2040** version. It uses the same SDA (10) and RST (9) pins and sends the same messages, but shows feedback on the onboard colour LED instead of an LED matrix. Wiring and colours are in [arduino/SETUP.md](../arduino/SETUP.md#feather-rp2040-version).
 
 ### Wiring (RC522 → UNO R4 WiFi)
 SDA→D10, SCK→D13, MOSI→D11, MISO→D12, RST→D9, GND→GND, **3.3V→3.3V** (not 5V). IRQ isn't used.

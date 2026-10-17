@@ -2,6 +2,8 @@
 
 You only need the board, the RFID reader, 7 jumper wires, and the fob and card that came with the reader. The ✓ / ✗ feedback uses the **built-in LED matrix** on the UNO R4 WiFi, so there's nothing else to wire.
 
+> **Using an Adafruit Feather RP2040 instead?** Skip to [Feather RP2040 version](#feather-rp2040-version) at the bottom.
+
 ## Parts
 
 | Part | Notes |
@@ -87,3 +89,51 @@ $cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resourc
 | site → Arduino | `WAIT` / `OK` / `DENY` / `IDLE` | change the LED matrix |
 
 The website decides whether a tag is allowed. The Arduino only reads tags and shows results.
+
+---
+
+## Feather RP2040 version
+
+Sketch: `arduino/TagReader/TagReader.ino`. It sends the same messages to the website, so nothing on the website changes. The Feather has no LED matrix, so feedback uses its **onboard colour LED (NeoPixel)**.
+
+### Wiring (RC522 → Feather RP2040)
+
+| RC522 pin | Feather pin | Where |
+|---|---|---|
+| SDA (SS) | 10 | right header |
+| SCK | SCK | left header |
+| MOSI | MO | left header |
+| MISO | MI | left header |
+| IRQ | *not connected* | |
+| GND | GND | left header |
+| RST | 9 | right header (earlier diagrams said 7) |
+| 3.3V | **3V** | left header. ⚠️ Not USB/5V. |
+
+SCK, MO and MI are the Feather's default SPI pins, so the sketch only sets SDA (10) and RST (9).
+
+### Software
+1. **Board package:** Earle Philhower's **Raspberry Pi Pico/RP2040/RP2350** package (already installed on this laptop). To install it elsewhere, add this URL under File → Preferences → *Additional boards manager URLs*, then install the package from the Boards Manager:
+   `https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json`
+2. **Libraries:** **MFRC522** and **Adafruit NeoPixel** (both already installed).
+3. **Upload:** select **Tools → Board → Raspberry Pi Pico/RP2040/RP2350 → Adafruit Feather RP2040** and the board's COM port, then click **Upload**.
+   - If no port shows up, hold **BOOT**, tap **RESET**, release BOOT, and upload again. The board then appears as a USB drive called `RPI-RP2`.
+
+From the terminal:
+```powershell
+$cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"
+$cfg = "$env:USERPROFILE\.arduinoIDE\arduino-cli.yaml"
+& $cli --config-file $cfg compile --fqbn rp2040:rp2040:adafruit_feather arduino/TagReader
+& $cli --config-file $cfg upload  -p COM8 --fqbn rp2040:rp2040:adafruit_feather arduino/TagReader
+```
+
+### What the colour LED shows
+
+| Colour | Meaning |
+|---|---|
+| dim white | idle, ready |
+| blue, pulsing | waiting for a tap (a payment is pending) |
+| green (3 s) | approved |
+| red (3 s) | blocked |
+| red, blinking | the RC522 wasn't found: check the wiring |
+
+The Feather's USB serial loses anything printed before a program opens the port. So the sketch sends `READY` (or `ERROR:READER`) **each time the website or Serial Monitor connects**, not only at startup.
