@@ -51,14 +51,14 @@ If your RC522 came without headers soldered on, the jumpers won't make reliable 
 **Option A, Arduino IDE (click-through):**
 1. Tools → Board → Boards Manager → install **Arduino UNO R4 Boards** (already installed on this laptop).
 2. Tools → Manage Libraries → install **MFRC522** by GithubCommunity (already installed). The IDE may warn that the library "may be incompatible" with the R4. You can ignore that because it works fine.
-3. Open `arduino/SwampTag/SwampTag.ino`, select **Arduino UNO R4 WiFi** and its COM port, then click **Upload**.
+3. Open `arduino/SwampTag_UNO_R4_WiFi/SwampTag_UNO_R4_WiFi.ino`, select **Arduino UNO R4 WiFi** and its COM port, then click **Upload**.
 
 **Option B, terminal (`arduino-cli` comes with the IDE):**
 ```powershell
 $cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"
 & $cli board list                                   # find the COM port, e.g. COM5
-& $cli compile --fqbn arduino:renesas_uno:unor4wifi arduino/SwampTag
-& $cli upload  -p COM5 --fqbn arduino:renesas_uno:unor4wifi arduino/SwampTag
+& $cli compile --fqbn arduino:renesas_uno:unor4wifi arduino/SwampTag_UNO_R4_WiFi
+& $cli upload  -p COM5 --fqbn arduino:renesas_uno:unor4wifi arduino/SwampTag_UNO_R4_WiFi
 & $cli monitor -p COM5 -c baudrate=115200           # Ctrl+C to quit
 ```
 
@@ -94,7 +94,7 @@ The website decides whether a tag is allowed. The Arduino only reads tags and sh
 
 ## Feather RP2040 version
 
-Sketch: `arduino/TagReader/TagReader.ino`. It sends the same messages to the website, so nothing on the website changes. The Feather has no LED matrix, so feedback uses its **onboard colour LED (NeoPixel)**.
+Sketch: `arduino/TagReader/TagReader.ino` (on the `feature/tap-limit` branch; this `uno-r4-wifi` branch has only the UNO sketch). It sends the same messages to the website, so nothing on the website changes. The Feather has no LED matrix, so feedback uses its **onboard colour LED (NeoPixel)**.
 
 ### Wiring (RC522 → Feather RP2040)
 

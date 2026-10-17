@@ -60,7 +60,7 @@ For a full walkthrough of every part, see **[docs/HOW_IT_WORKS.md](docs/HOW_IT_W
 |---|---|
 | Phone terminal | [website/terminal.html](website/terminal.html) + [js/terminal.js](website/js/terminal.js): runs on the Pixel, reads the key with Web NFC |
 | Key format | [docs/KEY_FORMAT.md](docs/KEY_FORMAT.md): what the key device writes and how the terminal checks it |
-| Old USB reader | [arduino/SwampTag/SwampTag.ino](arduino/SwampTag/SwampTag.ino), [arduino/SETUP.md](arduino/SETUP.md) |
+| Old USB reader | [arduino/SwampTag_UNO_R4_WiFi/SwampTag_UNO_R4_WiFi.ino](arduino/SwampTag_UNO_R4_WiFi/SwampTag_UNO_R4_WiFi.ino), [arduino/SETUP.md](arduino/SETUP.md) |
 | Server | [server.py](server.py): serves the site, forwards `/api/nessie/*` with the key, passes the Auth0 settings, and relays between the dashboard and the phone ([terminal.py](terminal.py), which also checks key codes). Python standard library only |
 | Nessie setup | [tools/seed_nessie.py](tools/seed_nessie.py) |
 | Website | [website/](website/), with one file per job in `js/`: |

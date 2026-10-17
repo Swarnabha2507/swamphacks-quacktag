@@ -8,7 +8,7 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - The Arduino + RC522 is now attached to the key and rewrites it at intervals. That **key device is a teammate's job**: don't build it, only agree the format (`docs/KEY_FORMAT.md`).
 
 ## Layout
-- `arduino/SwampTag/SwampTag.ino`: UNO R4 WiFi + RC522 sketch. LED matrix feedback, no other parts.
+- `arduino/SwampTag_UNO_R4_WiFi/SwampTag_UNO_R4_WiFi.ino`: UNO R4 WiFi + RC522 sketch. LED matrix feedback, no other parts.
 - `arduino/SETUP.md`: wiring table, upload steps, serial protocol.
 - `server.py`: stdlib server.
   - Serves `website/`. `/api/config` returns live status and the seeded IDs.

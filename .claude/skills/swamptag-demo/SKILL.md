@@ -8,7 +8,7 @@ description: Run the SwampTag demo end to end. Serve the site, connect the Pixel
 ## Paths
 - Site root: `website/`. Phone terminal page: `website/terminal.html`.
 - Server: `server.py`, with the relay and key check in `terminal.py`.
-- Old Arduino reader: CLI `$cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"`, FQBN `arduino:renesas_uno:unor4wifi`, sketch `arduino/SwampTag`.
+- Old Arduino reader: CLI `$cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"`, FQBN `arduino:renesas_uno:unor4wifi`, sketch `arduino/SwampTag_UNO_R4_WiFi`.
 
 ## Serve the site
 Run `python server.py` from the project root (in the background), then open http://localhost:8000 in Chrome or Edge.
