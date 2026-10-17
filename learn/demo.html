@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice check demo</title>
+  <style>
+    :root { --bg: #f4f6f9; --card: #fff; --text: #0b1f3a; --muted: #5b6b80; --line: #d5dbe3;
+            --blue: #0b5cff; --green: #1f9d55; --amber: #e5a100; --red: #d93025; --code: #0b1f3a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; display: grid; gap: 16px; }
+    h1 { font-size: 1.4rem; margin: 0; }
+    h2 { font-size: 1rem; margin: 0 0 10px; }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    .card { background: var(--card); border-radius: 14px; padding: 18px; box-shadow: 0 2px 10px rgba(11,31,58,.06); }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    label { font-weight: 600; font-size: 0.9rem; }
+    button { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 10px; border: none; background: var(--blue); color: #fff; cursor: pointer; }
+    button.secondary { background: #e8eef9; color: var(--blue); }
+    button.rec { background: var(--red); }
+    button:disabled { background: #b3bcc4; color: #fff; cursor: default; }
+    input, select, textarea { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text); }
+    textarea { width: 100%; min-height: 64px; resize: vertical; }
+    .stage { border-left: 4px solid var(--line); padding: 8px 12px; margin-top: 10px; }
+    .stage.ok { border-color: var(--green); } .stage.warn { border-color: var(--amber); } .stage.bad { border-color: var(--red); }
+    .stage h3 { margin: 0 0 4px; font-size: 0.95rem; }
+    .badge { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; color: #fff; }
+    .high { background: var(--red); } .medium { background: var(--amber); } .low { background: var(--green); }
+    pre { background: var(--code); color: #cfe1ff; padding: 12px; border-radius: 10px; overflow-x: auto; font-size: 0.82rem; white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; }
+    .hidden { display: none; }
+    .spin::after { content: '…'; animation: dots 1s steps(3) infinite; }
+    @keyframes dots { 0% { content: '.'; } 33% { content: '..'; } 66% { content: '...'; } }
+  </style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Voice check demo</h1>
+    <p class="muted">Test voice → Whisper → Gemini one stage at a time. Models tried in order: <span id="models">…</span></p>
+    <div class="row">
+      <button class="secondary" id="rep-now">📞 Talk to a representative</button>
+      <span class="muted">No recording needed. Demo only: no call is made.</span>
+    </div>
+  </div>
+
+  <section class="card">
+    <h2>1. Give it something to check</h2>
+    <div class="row">
+      <button id="rec">🎤 Record</button>
+      <span class="muted">or</span>
+      <input type="file" id="file" accept="audio/*">
+    </div>
+    <p class="muted" style="margin:10px 0 4px">or skip Whisper and type what the person said:</p>
+    <textarea id="text" placeholder="My grandson called, he's in jail and needs bail..."></textarea>
+    <div class="row" style="margin-top:6px"><button class="secondary" id="send-text">Check typed text</button></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Settings</h2>
+    <div class="row">
+      <label for="amount">Amount $</label>
+      <input id="amount" type="number" value="500" min="1" style="width:110px">
+      <label for="simulate">Simulate</label>
+      <select id="simulate">
+        <option value="none">Nothing (real Gemini)</option>
+        <option value="first-busy">First model busy (503)</option>
+        <option value="all-busy">Every model busy (503)</option>
+        <option value="offline">No internet</option>
+      </select>
+    </div>
+    <p class="muted" style="margin:8px 0 0">"No internet" and "Every model busy" use no Gemini requests: they test the offline backup.</p>
+    <label class="row" style="margin-top:10px; font-weight:400">
+      <input type="checkbox" id="ask-human">
+      The person asks to speak with customer service
+    </label>
+    <p class="muted" style="margin:4px 0 0">Customer service is also offered automatically when the AI models aren't working, or when the person says something like "customer service" or "talk to a person". It's <strong>demo only</strong>: no call is made.</p>
+  </section>
+
+  <section class="card">
+    <h2>3. What happened</h2>
+    <p class="muted" id="status">Nothing checked yet.</p>
+    <div id="stages"></div>
+    <div class="row" style="margin-top:10px"><button class="secondary hidden" id="speak">🔊 Read the warning again</button></div>
+    <div class="stage warn hidden" id="cs-box">
+      <h3>📞 Customer service</h3>
+      <div id="cs-reason"></div>
+      <div class="muted">SwampTag customer service · (352) 555-0100 (fictional number)</div>
+      <div class="row" style="margin-top:8px"><button id="cs-call">📞 Call customer service</button></div>
+      <div id="cs-status" class="muted" style="margin-top:6px"></div>
+    </div>
+    <details style="margin-top:10px"><summary>Server log</summary><pre id="log">(empty)</pre></details>
+  </section>
+
+  <section class="card">
+    <h2>4. Self-check</h2>
+    <p class="muted">Runs learn/demo_check.py and shows its PASS / FAIL report.</p>
+    <div class="row">
+      <button class="secondary" id="self-offline">Run offline (0 Gemini requests)</button>
+      <button class="secondary" id="self-live">Run live (3 Gemini requests)</button>
+    </div>
+    <pre id="self-out" class="hidden"></pre>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let recorder = null;
+  let chunks = [];
+  let lastWarning = '';
+  let lastText = '';   // what the person said or typed, for the customer-service log
+  let csReason = '';
+
+  fetch('/api/info').then((r) => r.json()).then((info) => { $('models').textContent = info.models.join(' → '); })
+    .catch(() => { $('models').textContent = '(server not reachable: is demo_server.py running?)'; });
+
+  function params() {
+    return `amount=${encodeURIComponent($('amount').value || 500)}&simulate=${$('simulate').value}`;
+  }
+
+  function busy(on, what) {
+    for (const id of ['rec', 'send-text', 'file', 'self-offline', 'self-live']) $(id).disabled = on && id !== 'rec';
+    $('status').className = on ? 'muted spin' : 'muted';
+    if (what) $('status').textContent = what;
+  }
+
+  function stage(title, cls, lines) {
+    const div = document.createElement('div');
+    div.className = `stage ${cls}`;
+    const h = document.createElement('h3');
+    h.textContent = title;
+    div.append(h);
+    for (const line of lines) {
+      if (line instanceof Node) { div.append(line); continue; }
+      const p = document.createElement('div');
+      p.textContent = line;
+      div.append(p);
+    }
+    return div;
+  }
+
+  function show(report) {
+    const box = $('stages');
+    box.replaceChildren();
+    const w = report.stages?.whisper;
+    if (w?.skipped) box.append(stage('Stage 1 · Whisper: skipped', 'warn', ['You typed the text, so no audio was transcribed.']));
+    else if (w) {
+      const seg = document.createElement('pre');
+      seg.textContent = (w.segments || []).join('\n') || '(no segments)';
+      box.append(stage(`Stage 1 · Whisper ✓ (${w.seconds}s for ${w.audioSeconds}s of audio)`, 'ok',
+        [`Heard: "${w.text}"`, `Saved as ${w.file}`, seg]));
+    }
+
+    const g = report.stages?.gemini;
+    if (g) {
+      const offline = g.model === 'offline rules';
+      const badge = document.createElement('span');
+      badge.className = `badge ${g.review.risk}`;
+      badge.textContent = `risk: ${g.review.risk}`;
+      const json = document.createElement('pre');
+      json.textContent = JSON.stringify(g.review, null, 2);
+      box.append(stage(`Stage 2 · ${offline ? 'Offline rules (backup)' : 'Gemini'} ✓ (${g.seconds}s, answered by ${g.model})`,
+        offline ? 'warn' : 'ok', [badge, `Scam type: ${g.review.scamType}`, ...g.review.reasons.map((r) => `• ${r}`), json]));
+      box.append(stage('Stage 3 · Read aloud', 'ok', [`"${g.review.spokenWarning}"`]));
+      lastWarning = g.review.spokenWarning;
+      $('speak').classList.remove('hidden');
+      speak(lastWarning);
+    }
+
+    if (report.error) {
+      const err = document.createElement('pre');
+      err.textContent = report.error;
+      box.append(stage('❌ Error: this is where it broke', 'bad', [err]));
+    }
+    $('status').textContent = report.ok ? `Done. Simulate: ${report.simulate}, amount: $${report.amount}` : 'Something failed. See the red box below.';
+    $('log').textContent = report.log || '(empty)';
+
+    lastText = w?.text || lastText;
+    const reason = customerServiceReason(report, lastText);
+    if (reason) offerCustomerService(reason);
+  }
+
+  // ---------- Customer service (demo only: nothing is actually called) ----------
+
+  const HUMAN_PHRASES = ['customer service', 'representative', 'real person', 'talk to a person', 'talk to someone',
+                         'speak to a person', 'speak to someone', 'speak with someone', 'human'];
+
+  // Returns why customer service should be offered, or null when it isn't needed.
+  function customerServiceReason(report, text) {
+    if ($('ask-human').checked) return 'The person asked to speak with customer service.';
+    const said = (text || '').toLowerCase();
+    if (HUMAN_PHRASES.some((p) => said.includes(p))) return 'The person said they want to talk to a person.';
+    if (!report.ok) return 'Something went wrong with the check.';
+    if (report.stages?.gemini?.model === 'offline rules') return "The AI models aren't working right now, so only the basic offline rules checked this.";
+    return null;
+  }
+
+  function offerCustomerService(reason) {
+    csReason = reason;
+    $('cs-reason').textContent = reason;
+    $('cs-status').textContent = '';
+    $('cs-call').disabled = false;
+    $('cs-box').classList.remove('hidden');
+  }
+
+  $('cs-call').addEventListener('click', async () => {
+    $('cs-call').disabled = true;
+    $('cs-status').className = 'muted spin';
+    $('cs-status').textContent = 'Connecting you to customer service';
+    try {   // only records the request in learn/voice_checks.txt
+      await fetch('/api/customer-service', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: csReason, text: lastText }) });
+    } catch { /* the demo still shows the message below */ }
+    await new Promise((r) => setTimeout(r, 2000));   // pretend to dial
+    $('cs-status').className = 'muted';
+    $('cs-status').textContent = "📵 Customer service isn't connected in this demo. No call was made.";
+    speak("Customer service isn't available in this demo. In the real app, you would be connected to a person here.");
+    $('cs-call').disabled = false;
+  });
+
+  // Path 0: the person wants a representative before doing anything: no check needed.
+  $('rep-now').addEventListener('click', () => {
+    lastText = '';
+    offerCustomerService('The person asked for a representative before starting.');
+    $('cs-box').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('cs-call').click();   // start the (pretend) call straight away
+  });
+
+  function speak(text) {
+    if (!('speechSynthesis' in window) || !text) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95;
+    speechSynthesis.speak(u);
+  }
+
+  async function send(body, contentType, label) {
+    $('cs-box').classList.add('hidden');   // a new check starts without the customer-service offer
+    lastText = contentType === 'application/json' ? $('text').value : '';
+    busy(true, label);
+    try {
+      const res = await fetch(`/api/voice-check?${params()}`, { method: 'POST', headers: { 'Content-Type': contentType }, body });
+      show(await res.json());
+    } catch (err) {
+      $('stages').replaceChildren(stage('❌ Could not reach demo_server.py', 'bad', [String(err), 'Is the server still running in the terminal?']));
+      $('status').textContent = 'Request failed.';
+    } finally {
+      busy(false);
+    }
+  }
+
+  $('rec').addEventListener('click', async () => {
+    if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorder = new MediaRecorder(stream);
+      chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());          // turn the microphone off
+        $('rec').textContent = '🎤 Record';
+        $('rec').classList.remove('rec');
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        send(blob, blob.type, 'Transcribing with Whisper, then asking Gemini');
+      };
+      recorder.start();
+      $('rec').textContent = '⏹ Stop and check';
+      $('rec').classList.add('rec');
+      $('status').textContent = 'Recording… speak now, then press Stop.';
+    } catch (err) {
+      $('status').textContent = `Microphone not available: ${err.message}`;
+    }
+  });
+
+  $('file').addEventListener('change', () => {
+    const f = $('file').files[0];
+    if (f) send(f, f.type || 'audio/webm', `Transcribing ${f.name}, then asking Gemini`);
+    $('file').value = '';
+  });
+
+  $('send-text').addEventListener('click', () => {
+    send(JSON.stringify({ text: $('text').value }), 'application/json', 'Asking Gemini');
+  });
+
+  $('speak').addEventListener('click', () => speak(lastWarning));
+
+  async function selfCheck(offline) {
+    busy(true, offline ? 'Running the offline self-check' : 'Running the live self-check');
+    $('self-out').classList.remove('hidden');
+    $('self-out').textContent = 'Running… (Whisper loads in a separate process, about 10–20 s)';
+    try {
+      const res = await fetch(`/api/self-check?offline=${offline ? 1 : 0}`, { method: 'POST' });
+      $('self-out').textContent = (await res.json()).output;
+    } catch (err) {
+      $('self-out').textContent = `Could not run: ${err}`;
+    } finally {
+      busy(false, 'Self-check finished.');
+    }
+  }
+  $('self-offline').addEventListener('click', () => selfCheck(true));
+  $('self-live').addEventListener('click', () => selfCheck(false));
+</script>
+</body>
+</html>

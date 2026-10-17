@@ -1,0 +1,8 @@
+# Packages for Whisper (learn/ scripts and transcriber.py). Install into the virtual environment:
+#   py -3.12 -m venv .venv
+#   .venv\Scripts\python.exe -m pip install -r learn/requirements.txt
+#
+# Pinned (==) because these versions are known to work together:
+# av 19 removed an option faster-whisper 1.2.1 still uses, so av stays at 16.1.0.
+faster-whisper==1.2.1
+av==16.1.0
