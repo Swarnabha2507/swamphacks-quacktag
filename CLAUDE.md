@@ -57,7 +57,19 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
     - The Management API audience and scopes are requested at login.
     - The key is kept in `user_metadata.swamptag_key`.
     - A `sessionStorage` flag marks a demo-account session.
-- `docs/KEY_FORMAT.md`: the agreement with the key-device teammate (ST1 record, HMAC, counter, NTAG215 advice, antenna off between writes).
+- `firmware/swamptag_key/`: **PlatformIO** project for the Adafruit Feather RP2040 + RC522 (Philhower core via maxgerhardt's platform).
+  - `env:key` rewrites the fob with `ST1` every 15 s while it rests on the reader. `env:card` (`-D CARD_WRITER`) writes the fake debit card (`SC1`).
+  - `src/ndef_tag.cpp`: NDEF Text read/write on NTAG/Ultralight and **MIFARE Classic 1K** (NFC Forum MAD format; key B stays FF…FF; MAD CRC-8 checked against the NFC Forum example).
+  - `include/secrets.h` is gitignored and holds the same `KEY_SECRET` as `.env`.
+  - **Build:** `%USERPROFILE%\.platformio\penv\Scripts\pio.exe run -d firmware/swamptag_key -e key -e card`.
+  - **Flash:** picotool can't reach the board without a Zadig driver. Instead, put the board in BOOTSEL (a failed upload does that, or BOOT + RESET), then copy `.pio/build/<env>/firmware.uf2` to the **RPI-RP2** drive (it was D:).
+  - The Feather's serial port moves between COM4 and COM5 after reflashing.
+- `website/pump.html` + `js/pump.js`: the **gas-station checkout** on the phone.
+  - Steps: items (fuel $20/$40/$60 or gallons at $3, store items) → Charge → card → PIN pad (dots only) → key → receipt or decline.
+  - One `NDEFReader.scan()` is started by the Start tap, with NFC first. Demo buttons appear without NFC. ⚙ setup shows the raw reads and pairs card + key by ID.
+- `terminal.py` → `PumpAuthorizer` (shares the `KeyChecker`) checks: `SC1` card (or `pairings.json` in ID-only mode) → `CARD_PIN` (3 tries) → the key's `ST1` code is fresh, and the key is the card's paired key.
+- `server.py`: `/api/pump/card`, `/api/pump/authorize`, `/api/pump/pair`. Approved sales are POSTed to Nessie in a background thread at "Swamp Gas & Go". That merchant is created once, cached in gitignored `local_state.json`, and added to `/api/config` merchants.
+- `docs/KEY_FORMAT.md`: the ST1 key record, the SC1 card record, the checks, the MIFARE Classic layout.
 - `.claude/skills/redesign-existing-projects/`: UI audit skill (MIT, from Leonxlnx/taste-skill), used for the cleanup pass.
 - `STYLE_GUIDE.md`: tokens and components. Banking-app look: gradient tiles, navy/blue, red only for accents and danger. Geist font, square badges, tabular figures.
 

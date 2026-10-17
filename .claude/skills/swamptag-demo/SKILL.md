@@ -32,6 +32,24 @@ Run `python server.py` from the project root (in the background), then open http
 - Check data through the proxy: `curl -s localhost:8000/api/nessie/accounts/<accountId>/purchases`. The `accountId` is in `nessie_ids.json`.
 - API quirks are in CLAUDE.md.
 
+## Key device firmware (Feather RP2040 + RC522)
+- **Project:** `firmware/swamptag_key` (PlatformIO). CLI: `$pio = "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"`.
+- **Build:** `& $pio run -d firmware/swamptag_key -e key -e card`.
+- **Flash:**
+  1. Run `& $pio run -d firmware/swamptag_key -e <env> -t upload --upload-port COMx`. It usually fails at picotool (no Zadig driver), but it leaves the board in BOOTSEL.
+  2. Copy `firmware/swamptag_key/.pio/build/<env>/firmware.uf2` to the **RPI-RP2** drive.
+  3. The board reboots, and its COM port number may change.
+- **Watch it:** log with PlatformIO's Python and pyserial (set DTR), or use `& $pio device monitor`.
+  - Card writer: expect `FOB <uid>`, then `WROTE CARD ...`.
+  - Key mode: expect `PLACED <uid>`, then `WROTE ST1:...` every 15 s.
+- **Shared secret:** `KEY_SECRET` in `.env` must equal the one in `include/secrets.h`. Restart `server.py` after changing `.env`.
+
+## Gas pump (phone)
+- Open `localhost:8000/pump.html` on the phone (after `adb reverse tcp:8000 tcp:8000`) and tap **Start pump**.
+- **Flow:** items → Charge → card → PIN (`CARD_PIN`, default 1234) → key → receipt.
+- **Test without hardware:** the demo buttons appear when there's no Web NFC.
+- **Check what the phone reads:** the ⚙ setup panel shows each raw read (ID + records). "No data records" means the phone can't read MIFARE Classic data, so pair the card and key by ID there.
+
 ## Demo checklist
 1. The home page renders, and its links go to login → dashboard. The badge reads **Live · Capital One Nessie**.
 2. The phone terminal is connected: the dashboard's Terminal row is green, and the phone shows "Ready for payment".

@@ -3,3 +3,10 @@
 __pycache__/
 # Last accepted counter for each key (written by server.py while it runs)
 key_counters.json
+
+# PlatformIO build output and the firmware secret (KEY_SECRET lives in .env too)
+firmware/**/.pio/
+firmware/**/include/secrets.h
+# Pump pairings and the cached gas merchant (written by server.py)
+pairings.json
+local_state.json

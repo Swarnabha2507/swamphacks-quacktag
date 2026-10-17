@@ -58,6 +58,8 @@ For a full walkthrough of every part, see **[docs/HOW_IT_WORKS.md](docs/HOW_IT_W
 
 | Part | Files |
 |---|---|
+| Gas pump (phone) | [website/pump.html](website/pump.html) + [js/pump.js](website/js/pump.js): pick items → card → PIN → key, on the Pixel with Web NFC |
+| Key device | [firmware/swamptag_key](firmware/swamptag_key/README.md): Feather RP2040 + RC522 (PlatformIO). Rewrites the fob every 15 s; second build writes the fake debit card |
 | Phone terminal | [website/terminal.html](website/terminal.html) + [js/terminal.js](website/js/terminal.js): runs on the Pixel, reads the key with Web NFC |
 | Key format | [docs/KEY_FORMAT.md](docs/KEY_FORMAT.md): what the key device writes and how the terminal checks it |
 | Old USB reader | [arduino/SwampTag/SwampTag.ino](arduino/SwampTag/SwampTag.ino), [arduino/SETUP.md](arduino/SETUP.md) |
@@ -106,6 +108,18 @@ Only **approved** payments are written to Nessie. Blocked money never moves.
 - No internet? Run `python server.py --offline` for demo data.
 - No Auth0? The demo login still works.
 - No phone or no NFC? The terminal page shows **Correct key / Wrong key** buttons, or turn on **Demo mode** on the dashboard and press **T** / **X**.
+
+## Gas-station demo (about 2 minutes)
+**Setup:**
+- Flash the key device ([firmware/swamptag_key](firmware/swamptag_key/README.md)), write the fake debit card, and rest the fob on the key device.
+- On the phone, open `localhost:8000/pump.html` and tap **Start pump**.
+
+1. Pick **Regular $40** and a coffee, then **Charge $42**.
+2. **Tap the debit card** on the back of the phone. It shows "SwampTag Debit •••• 4821".
+3. Enter the **PIN** (1234). Only dots show, which matters because a shoulder-surfer is part of the story.
+4. **Scan the key fob** → ✓ **Approved**. The sale lands in Nessie at "Swamp Gas & Go".
+5. **The attack:** start a new sale and use the card and PIN, but scan the fob **without** putting it back on its key device. Its code is now old, like a copied fob → ✗ "Old key code, possibly a copied key".
+6. **Different fob** → ✗ "This key isn't paired with this card".
 
 ## Demo script (about 4 minutes)
 1. **Sign in** with Auth0 (Google + MFA). The dashboard shows your name and the **Live · Capital One Nessie** badge.

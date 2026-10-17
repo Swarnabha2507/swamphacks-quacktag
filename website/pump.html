@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pump 4 – Swamp Gas &amp; Go</title>
+  <meta name="description" content="SwampTag gas-station checkout: choose items, pay with card, PIN and your SwampTag key.">
+  <meta name="theme-color" content="#13294b">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="pump-body">
+  <header class="pump-top">
+    <div>
+      <strong>Swamp Gas &amp; Go</strong>
+      <span>Pump 4 · Gainesville</span>
+    </div>
+    <div class="pump-top-right">
+      <span class="badge badge-dot" id="nfc-status">Starting…</span>
+      <button class="pump-gear" id="setup-btn" aria-label="Pump setup">⚙</button>
+    </div>
+  </header>
+
+  <ol class="pump-steps" id="steps" aria-label="Checkout steps">
+    <li data-step="shop">Items</li>
+    <li data-step="card">Card</li>
+    <li data-step="pin">PIN</li>
+    <li data-step="key">Key</li>
+  </ol>
+
+  <main class="pump-main" id="screen" aria-live="polite"></main>
+
+  <div class="term-start" id="start">
+    <div>
+      <h1>Swamp Gas &amp; Go</h1>
+      <p class="muted">Tap once to turn on the card reader, full screen and keep-awake.</p>
+      <button class="btn btn-primary" id="start-btn">Start pump</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="setup">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+      <div class="modal-head"><h2 id="setup-title">Pump setup</h2><button class="icon-btn" id="setup-close" aria-label="Close">×</button></div>
+      <div id="setup-body"></div>
+    </div>
+  </div>
+
+  <script src="js/pump.js"></script>
+</body>
+</html>

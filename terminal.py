@@ -35,6 +35,7 @@ class KeyChecker:
         self.secret = secret
         self.counters_file = Path(counters_file) if counters_file else None
         self.counters = {}
+        self.lock = threading.Lock()  # the server handles requests on several threads
         if self.counters_file and self.counters_file.exists():
             try:
                 self.counters = json.loads(self.counters_file.read_text(encoding="utf-8"))
@@ -46,6 +47,10 @@ class KeyChecker:
         return hmac.new(self.secret.encode(), msg, hashlib.sha256).hexdigest()[:8].upper()
 
     def check(self, serial="", texts=()):
+        with self.lock:
+            return self._check(serial, texts)
+
+    def _check(self, serial, texts):
         for text in texts:
             match = ST1.fullmatch(text.strip())
             if not match:
@@ -134,3 +139,117 @@ class TerminalRelay:
                 "next": self.next_event - 1,
                 "phoneOnline": time.time() - self.phone_seen < PHONE_ONLINE_S,
             }
+
+
+# ---------- Gas-station checkout (website/pump.html) ----------
+# The fake debit card holds a static record written by firmware/swamptag_key (env:card):
+#     SC1:<last4>:<holder>:<keyId>      keyId = UID of the key fob the card is paired with
+# Checkout = card → PIN → key. The key must carry a fresh ST1 code (KeyChecker) AND be
+# the card's paired key. If the phone can only see tag serial numbers (no NDEF data),
+# cards are paired with keys through pairings.json instead (pump setup screen).
+
+SC1 = re.compile(r"SC1:(\d{4}):([^:]{1,40}):([0-9A-Fa-f]{4,20})")
+DEMO_CARD = "SC1:4821:ALBERT GATOR:DE0DE001"
+MAX_PIN_TRIES = 3
+
+
+def clean_uid(serial):
+    return re.sub(r"[^0-9A-Fa-f]", "", serial or "").upper()
+
+
+class PumpAuthorizer:
+    def __init__(self, checker, pin="1234", pairings_file=None):
+        self.checker = checker
+        self.pin = pin
+        self.pairings_file = Path(pairings_file) if pairings_file else None
+        self.pairings = {}  # card UID -> key UID (serial-number mode only)
+        if self.pairings_file and self.pairings_file.exists():
+            try:
+                self.pairings = json.loads(self.pairings_file.read_text(encoding="utf-8"))
+            except ValueError:
+                self.pairings = {}
+        self.wrong_pins = {}
+        self.demo_counter = 0
+        self.lock = threading.Lock()
+
+    # -- card --
+
+    def read_card(self, serial="", texts=(), simulate=None):
+        """Returns {ok, last4, holder, keyId, mode, cardId} or {ok: False, reason}."""
+        if simulate == "card":
+            texts, serial = [DEMO_CARD], "DE:MO:CA:RD"
+        for text in texts:
+            m = SC1.fullmatch(text.strip())
+            if m:
+                return {"ok": True, "last4": m.group(1), "holder": m.group(2).strip().title(),
+                        "keyId": m.group(3).upper(), "mode": "ndef", "cardId": clean_uid(serial) or m.group(1)}
+        uid = clean_uid(serial)
+        if uid and uid in self.pairings:
+            return {"ok": True, "last4": uid[-4:], "holder": "SwampTag cardholder",
+                    "keyId": self.pairings[uid], "mode": "serial", "cardId": uid}
+        if uid and not texts:
+            return {"ok": False, "reason": "This phone can only see the card's ID. Pair the card with its key in pump setup (⚙).", "serial": uid}
+        return {"ok": False, "reason": "That isn't a SwampTag card. Write it with the card-writer firmware first."}
+
+    def pair(self, card_serial, key_serial):
+        card, key = clean_uid(card_serial), clean_uid(key_serial)
+        if not card or not key:
+            return False
+        with self.lock:
+            self.pairings[card] = key
+            if self.pairings_file:
+                self.pairings_file.write_text(json.dumps(self.pairings, indent=2), encoding="utf-8")
+        return True
+
+    # -- key (demo buttons build a read the same way the real key device would) --
+
+    def demo_key_texts(self, kind, key_id):
+        if kind == "wrong":  # someone else's fob: a genuine code, but not this card's key
+            other = "BADBADBA"
+            counter = int(time.time())
+            code = self.checker.expected_code(other, counter) if self.checker.secret else "00000000"
+            return [f"ST1:{other}:{counter}:{code}"], "BA:DB:AD:BA"
+        with self.lock:
+            if kind == "good":
+                self.demo_counter = max(self.demo_counter + 1, self.checker.counters.get(key_id, 0) + 1)
+            counter = self.demo_counter  # "copied" replays the last code
+        code = self.checker.expected_code(key_id, counter) if self.checker.secret else "00000000"
+        return [f"ST1:{key_id}:{counter}:{code}"], ""
+
+    # -- checkout --
+
+    def authorize(self, card, pin, key, total=0, items=()):
+        card = card or {}
+        key = key or {}
+        c = self.read_card(card.get("serialNumber", ""), card.get("texts", []), card.get("simulate"))
+        if not c["ok"]:
+            return {"approved": False, "reason": c["reason"], "step": "card"}
+        card_id = c["cardId"]
+
+        with self.lock:
+            if self.wrong_pins.get(card_id, 0) >= MAX_PIN_TRIES:
+                return {"approved": False, "reason": "Card locked after 3 wrong PINs", "step": "pin"}
+            if str(pin) != str(self.pin):
+                self.wrong_pins[card_id] = self.wrong_pins.get(card_id, 0) + 1
+                left = MAX_PIN_TRIES - self.wrong_pins[card_id]
+                return {"approved": False, "reason": f"Wrong PIN ({left} {'try' if left == 1 else 'tries'} left)" if left else "Card locked after 3 wrong PINs", "step": "pin"}
+            self.wrong_pins.pop(card_id, None)
+
+        texts, serial = key.get("texts", []), key.get("serialNumber", "")
+        if key.get("simulate"):
+            if key["simulate"] == "copied" and not self.checker.secret:
+                # Without KEY_SECRET the server doesn't track counters, so say what would happen.
+                return {"approved": False, "reason": "Old key code, possibly a copied key", "step": "key"}
+            texts, serial = self.demo_key_texts(key["simulate"], c["keyId"])
+        has_code = any(ST1.fullmatch(t.strip()) for t in texts)
+        if c["mode"] == "ndef" and not has_code:
+            return {"approved": False, "reason": "This key has no SwampTag code. Rest it on its key dock first", "step": "key"}
+
+        line = self.checker.check(serial, texts)
+        if line.startswith("BADTAG:"):
+            return {"approved": False, "reason": line[len("BADTAG:"):], "step": "key"}
+        if line[len("TAG:"):] != c["keyId"].upper():
+            return {"approved": False, "reason": "This key isn't paired with this card", "step": "key"}
+
+        return {"approved": True, "reason": "", "card": {"last4": c["last4"], "holder": c["holder"]},
+                "total": total, "items": list(items)[:20], "verified": has_code}

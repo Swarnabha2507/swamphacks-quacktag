@@ -13,18 +13,22 @@ Only uses the Python standard library.
 import json
 import os
 import sys
+import threading
 import urllib.error
 import urllib.request
+from datetime import date
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
-from terminal import KeyChecker, TerminalRelay
+from terminal import KeyChecker, PumpAuthorizer, TerminalRelay
 
 ROOT = Path(__file__).resolve().parent
 WEB_DIR = ROOT / "website"
 IDS_FILE = ROOT / "nessie_ids.json"
 COUNTERS_FILE = ROOT / "key_counters.json"
+PAIRINGS_FILE = ROOT / "pairings.json"       # card ↔ key pairs, serial-number mode only
+LOCAL_STATE_FILE = ROOT / "local_state.json"  # e.g. the gas station merchant ID in Nessie
 TIMEOUT_S = 8
 
 
@@ -49,7 +53,12 @@ if API_KEY == "paste-your-key-here" or OFFLINE:
 
 # Shared secret for the rotating key codes (docs/KEY_FORMAT.md). Blank = accept codes unchecked.
 KEY_SECRET = os.environ.get("KEY_SECRET", "").strip()
-RELAY = TerminalRelay(KeyChecker(KEY_SECRET, COUNTERS_FILE))
+CHECKER = KeyChecker(KEY_SECRET, COUNTERS_FILE)  # one checker, so key counters are shared
+RELAY = TerminalRelay(CHECKER)
+PUMP = PumpAuthorizer(CHECKER, os.environ.get("CARD_PIN", "1234").strip() or "1234", PAIRINGS_FILE)
+GAS_MERCHANT = {"name": "Swamp Gas & Go", "initials": "SG", "place": "Gainesville, FL", "category": "Gas",
+                "lat": 29.6516, "lng": -82.3248, "role": "pump",
+                "address": {"street_number": "1300", "street_name": "SW 13th St", "city": "Gainesville", "state": "FL", "zip": "32608"}}
 QUIET_PATHS = ("/api/terminal/state", "/api/terminal/events")  # polled several times a second
 
 
@@ -105,8 +114,57 @@ def nessie_config():
     return {"live": True, **ids}
 
 
+def load_local_state():
+    if not LOCAL_STATE_FILE.exists():
+        return {}
+    try:
+        return json.loads(LOCAL_STATE_FILE.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+
+
+def gas_merchant(create=False):
+    """The pump's Nessie merchant (created once, ID cached in local_state.json)."""
+    state = load_local_state()
+    if state.get("gasMerchantId"):
+        return {"id": state["gasMerchantId"], **{k: v for k, v in GAS_MERCHANT.items() if k != "address"}}
+    if not create:
+        return None
+    status, data = nessie_request("POST", "merchants", {
+        "name": GAS_MERCHANT["name"], "category": GAS_MERCHANT["category"], "address": GAS_MERCHANT["address"],
+        "geocode": {"lat": GAS_MERCHANT["lat"], "lng": GAS_MERCHANT["lng"]}})
+    merchant_id = (data.get("objectCreated") or {}).get("_id") if isinstance(data, dict) else None
+    if status not in (200, 201) or not merchant_id:
+        raise OSError(f"Nessie refused the merchant (HTTP {status})")
+    state["gasMerchantId"] = merchant_id
+    LOCAL_STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    return gas_merchant()
+
+
+def record_pump_sale(total, verified):
+    """Writes an approved pump sale to Nessie in the background (skipped when offline)."""
+    ids = load_ids()
+    if not API_KEY or not ids or total <= 0:
+        return
+
+    def work():
+        try:
+            merchant = gas_merchant(create=True)
+            nessie_request("POST", f"accounts/{ids['accountId']}/purchases", {
+                "merchant_id": merchant["id"], "medium": "balance", "purchase_date": date.today().isoformat(),
+                "status": "completed", "amount": int(round(total)),
+                "description": "SwampTag verified · Pump" if verified else "No SwampTag check · Pump"})
+        except OSError as err:
+            print(f"Pump sale not recorded in Nessie: {err}")
+
+    threading.Thread(target=work, daemon=True).start()
+
+
 def build_config():
     config = nessie_config()
+    merchant = gas_merchant() if config.get("live") else None
+    if merchant:
+        config["merchants"] = [*config.get("merchants", []), merchant]
     auth0 = auth0_config()
     if auth0:
         config["auth0"] = auth0
@@ -130,6 +188,39 @@ class Handler(SimpleHTTPRequestHandler):
         """Returns the parsed JSON body (None if empty). Raises ValueError for bad JSON."""
         length = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(length)) if length else None
+
+    def handle_pump(self, method, parts):
+        """Gas-station checkout on the phone (website/pump.html): card, PIN, key."""
+        if method != "POST":
+            return self.send_json(405, {"error": "POST only"})
+        try:
+            body = self.read_json_body() or {}
+        except ValueError:
+            return self.send_json(400, {"error": "Body must be JSON"})
+        route = parts.path[len("/api/pump/"):]
+
+        def read(field):
+            obj = body.get(field) or {}
+            texts = [t for t in obj.get("texts", []) if isinstance(t, str)][:8]
+            return {"serialNumber": str(obj.get("serialNumber", "")), "texts": texts, "simulate": obj.get("simulate")}
+
+        if route == "card":
+            c = read("card")
+            return self.send_json(200, PUMP.read_card(c["serialNumber"], c["texts"], c["simulate"]))
+        if route == "authorize":
+            try:
+                total = int(body.get("total", 0))
+            except (TypeError, ValueError):
+                total = 0
+            result = PUMP.authorize(read("card"), str(body.get("pin", "")), read("key"), total, body.get("items", []))
+            if result["approved"]:
+                record_pump_sale(total, result.get("verified", False))
+            print(f"Pump: {'APPROVED' if result['approved'] else 'DECLINED'} ${total} {result.get('reason', '')}")
+            return self.send_json(200, result)
+        if route == "pair":
+            ok = PUMP.pair(read("card")["serialNumber"], read("key")["serialNumber"])
+            return self.send_json(200 if ok else 400, {"ok": ok})
+        return self.send_json(404, {"error": "Unknown pump route"})
 
     def handle_terminal(self, method, parts):
         """Relay between the dashboard and the phone terminal (terminal.py)."""
@@ -171,6 +262,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(200, build_config())
         if parts.path.startswith("/api/terminal/"):
             return self.handle_terminal(method, parts)
+        if parts.path.startswith("/api/pump/"):
+            return self.handle_pump(method, parts)
         if not parts.path.startswith("/api/nessie/"):
             return self.send_json(404, {"error": "Unknown API route"})
         if not API_KEY:
@@ -213,7 +306,9 @@ def main():
     print("Nessie IDs:", "found" if IDS_FILE.exists() else "missing (run python tools/seed_nessie.py)")
     print("Auth0:", "on" if auth0_config() else "off (demo login; add AUTH0_DOMAIN and AUTH0_CLIENT_ID to .env)")
     print("Key codes:", "checked with KEY_SECRET" if KEY_SECRET else "not checked (no KEY_SECRET in .env)")
-    print(f"Phone terminal: http://localhost:{port}/terminal.html (forward port {port} from edge://inspect)")
+    print(f"Phone terminal: http://localhost:{port}/terminal.html   Gas pump: http://localhost:{port}/pump.html")
+    print(f"  (on the phone: adb reverse tcp:{port} tcp:{port}, or edge://inspect port forwarding)")
+    print("Card PIN:", "set in .env" if os.environ.get("CARD_PIN") else "1234 (default)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
