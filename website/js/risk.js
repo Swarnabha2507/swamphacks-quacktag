@@ -1,11 +1,11 @@
-// Smart taps: decides whether a payment needs a SwampTag tap, using the account's
-// purchase history and merchant locations (from Nessie when live).
+// Smart taps: decides whether a payment needs a SwampTag tap. The user's tap limit
+// decides; purchase history and merchant locations (from Nessie when live) only
+// explain on the tap screen why a payment looks unusual.
 
 const RISK = {
-  FAR_MILES: 25,       // farther than this from home = suspicious
-  TAP_FREE_LIMIT: 25,  // trusted purchases up to this amount skip the tap
-  LARGE_AMOUNT: 200,
-  UNUSUAL_MULTIPLE: 3, // this many times the usual purchase = unusual
+  DEFAULT_TAP_LIMIT: 200, // payments up to this amount skip the tap unless the user picks another limit
+  FAR_MILES: 25,          // farther than this from home = suspicious
+  UNUSUAL_MULTIPLE: 3,    // this many times the usual purchase = unusual
 };
 
 function milesBetween(a, b) {
@@ -19,8 +19,13 @@ function milesBetween(a, b) {
 // payment: { kind: 'purchase' | 'transfer' | 'bill', amount, merchant?: { id, lat, lng } }
 // history: past purchases [{ merchantId, amount }] (amount positive)
 // Returns { level: 'low' | 'medium' | 'high', reasons: [], tapRequired }
-function assessRisk(payment, history, home, { alwaysTap = false } = {}) {
+// A tap is required only when the amount is over tapLimit (or alwaysTap is on).
+function assessRisk(payment, history, home, { alwaysTap = false, tapLimit = RISK.DEFAULT_TAP_LIMIT } = {}) {
+  const tapRequired = alwaysTap || payment.amount > tapLimit;
+  if (!tapRequired) return { level: 'low', reasons: [], tapRequired };
+
   const reasons = [];
+  if (payment.amount > tapLimit) reasons.push(`Over your $${tapLimit} tap limit`);
 
   if (payment.kind === 'transfer') {
     reasons.push('Sending money to a person');
@@ -39,17 +44,11 @@ function assessRisk(payment, history, home, { alwaysTap = false } = {}) {
     const avg = history.length ? history.reduce((sum, h) => sum + h.amount, 0) / history.length : 0;
     if (avg && payment.amount > avg * RISK.UNUSUAL_MULTIPLE) {
       reasons.push(`${Math.round(payment.amount / avg)}× your usual spend`);
-    } else if (payment.amount > RISK.LARGE_AMOUNT) {
-      reasons.push('Large amount');
-    }
-
-    if (reasons.length === 0 && payment.amount > RISK.TAP_FREE_LIMIT) {
-      reasons.push(`Over your $${RISK.TAP_FREE_LIMIT} tap-free limit`);
     }
   }
 
-  const level = reasons.length === 0 ? 'low' : reasons.length >= 2 ? 'high' : 'medium';
-  return { level, reasons, tapRequired: alwaysTap || level !== 'low' };
+  const level = reasons.length >= 2 ? 'high' : 'medium';
+  return { level, reasons, tapRequired };
 }
 
 if (typeof module !== 'undefined') module.exports = { assessRisk, milesBetween, RISK };

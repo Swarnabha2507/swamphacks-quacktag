@@ -171,6 +171,7 @@ function renderKeyPanel() {
   $('#demo-toggle').checked = state.demoMode;
   $('#scam-toggle').checked = state.scamCheck;
   $('#smart-toggle').checked = !state.alwaysTap;
+  $('#tap-limit-text').textContent = `$${state.tapLimit}`;
 }
 
 function renderAll(highlightNewest = false) {
@@ -339,17 +340,17 @@ function startPayment(payment) {
     payWithoutKey(payment);
     return;
   }
-  const risk = assessRisk(payment, snap.history, snap.home, { alwaysTap: state.alwaysTap });
+  const risk = assessRisk(payment, snap.history, snap.home, { alwaysTap: state.alwaysTap, tapLimit: state.tapLimit });
   if (risk.tapRequired) requestApproval(payment, risk);
   else approveTrusted(payment);
 }
 
 async function approveTrusted(payment) {
   link.send('OK');
-  showResult('busy', 'Approving…', `Checking ${payment.name} against your history.`);
+  showResult('busy', 'Approving…', `Checking ${payment.name} against your tap limit.`);
   await commit(payment, 'trusted');
   showResult('good', 'Approved, no tap needed',
-    `${payment.name} is a merchant you use near home, and ${money.format(payment.amount)} is under your $${RISK.TAP_FREE_LIMIT} tap-free limit.`);
+    `${money.format(payment.amount)} is within your $${state.tapLimit} tap limit, so no tap was needed.`);
 }
 
 // Shows the "tap your key" screen and settles the payment.
@@ -675,10 +676,33 @@ function registerFlow() {
       Store.set('keyUid', uid);
       Store.addAlert('good', 'SwampTag key linked', `Key ${uid} now protects card ...4821.`);
       renderAll();
-      showResult('good', 'Key linked', `Key ${uid} now protects payments from card ...4821.`);
+      tapLimitFlow({ afterLink: true });
       syncKeyToProfile(uid);
     },
   };
+}
+
+// Asks how much can be spent before a tap is needed. Closing without saving keeps the current limit.
+function tapLimitFlow({ afterLink = false } = {}) {
+  const modal = openModal(`
+    ${afterLink ? '<div class="approval"><div class="result-icon good">✓</div><div class="result-title good">Key linked</div></div>' : ''}
+    ${modalHead('How much can you spend before a tap is needed?')}
+    <form id="limit-form">
+      <input class="input amount-input" id="limit-amount" inputmode="numeric" value="$${state.tapLimit}" aria-label="Tap limit in whole dollars">
+      <p class="modal-text">Payments of this amount or less go through without your key. Anything more needs a tap. Enter $0 to tap for every payment.</p>
+      <button class="btn btn-primary btn-block" type="submit">Save limit</button>
+    </form>`);
+  const input = modal.querySelector('#limit-amount');
+  input.select();
+  modal.querySelector('#limit-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const amount = readDollars(input);
+    if (!(amount >= 0)) return toast('Enter a whole-dollar amount, like $200.');
+    Store.set('tapLimit', amount);
+    closeModal();
+    renderKeyPanel();
+    toast(amount === 0 ? 'Every payment now needs a tap.' : `Payments of $${amount} or less skip the tap.`);
+  });
 }
 
 async function unlinkKey() {
@@ -744,7 +768,11 @@ $('#scam-toggle').addEventListener('change', (e) => {
 });
 $('#smart-toggle').addEventListener('change', (e) => {
   Store.set('alwaysTap', !e.target.checked);
-  toast(e.target.checked ? 'Smart taps on: trusted small purchases skip the tap.' : 'Every payment now needs a tap.');
+  toast(e.target.checked ? `Smart taps on: payments of $${state.tapLimit} or less skip the tap.` : 'Every payment now needs a tap.');
+});
+$('#tap-limit-btn').addEventListener('click', (e) => {
+  e.preventDefault(); // the button sits inside the Smart taps <label>; don't flip the toggle
+  tapLimitFlow();
 });
 $('#reset-link').addEventListener('click', async () => {
   const note = Bank.live ? ' Nessie transactions stay. Run "python tools/seed_nessie.py --fresh" for a clean bank account.' : '';

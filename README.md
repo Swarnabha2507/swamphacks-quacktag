@@ -18,15 +18,17 @@ Built at SwampHacks (University of Florida) for these tracks:
 - Risky payments are held until the owner taps the fob on a reader.
 - A thief with a cloned card and your PIN doesn't have the fob, so the payment is **blocked** and logged.
 
-**2. Smart taps.**
-- Nessie purchase history and merchant locations decide *when* to ask, so everyday purchases stay quick.
+**2. Smart taps with your own tap limit.**
+- Right after linking the fob, SwampTag asks *"How much can you spend before a tap is needed?"* It starts at **$200**, and you can change it any time under **Security → Smart taps → Change**.
+- Payments at or under the limit go straight through. Anything over it needs the fob. This applies to card payments, sending money and bills alike.
+- When a tap is needed, Nessie purchase history and merchant locations explain what looks off.
 
-| Payment | What happens |
+| Payment (limit $200) | What happens |
 |---|---|
 | $6 coffee at the usual Starbucks | goes through with no tap |
-| First time at Chipotle | asks for a tap ("New merchant") |
-| $390 at a gas station in Orlando | asks for a tap ("New merchant · 96 mi from home · 15× your usual spend") |
-| Sending money or paying a bill | always asks for a tap |
+| $90 at the UF Bookstore | goes through with no tap (asks for a tap if the limit is under $90) |
+| $390 at a gas station in Orlando | asks for a tap ("Over your $200 tap limit · New merchant · 96 mi from home · 15× your usual spend") |
+| Sending $500 or paying $725 rent | asks for a tap |
 
 **3. Scam check, built for older adults.** Before any transfer of **$200 or more**, SwampTag asks *"Why are you sending this money?"*
 - **Safe answers** (paying back a friend, splitting rent) go straight to the tap.
@@ -91,9 +93,9 @@ Only **approved** payments are written to Nessie. Blocked money never moves.
 ## Demo script (about 4 minutes)
 1. **Sign in** with Auth0 (Google + MFA). The dashboard shows your name and the **Live · Capital One Nessie** badge.
 2. **Without protection:** click **Simulate fraud**. The charge goes through.
-3. **Link a key:** tap the **blue fob**. The key is saved to your Auth0 profile.
+3. **Link a key:** tap the **blue fob**. The key is saved to your Auth0 profile. When asked how much you can spend before a tap is needed, enter **$50**.
 4. **Smart tap:** Pay in store → Starbucks $6. Approved with no tap.
-5. **Tap needed:** Pay in store → Chipotle → tap the fob. ✓ on the reader, and the purchase lands in Nessie.
+5. **Tap needed:** Pay in store → UF Bookstore $90 → "Over your $50 tap limit" → tap the fob. ✓ on the reader, and the purchase lands in Nessie.
 6. **The attack:** Simulate fraud. The screen shows "96 mi from home · 15× your usual spend". The thief taps the **white card** → ✗, blocked.
 7. **Scam check:** Send **$500** to Jordan. Choose "A family member says they are in trouble", then type "keep it secret".
    - The warning is read aloud and Maya gets a heads-up.

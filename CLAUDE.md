@@ -17,6 +17,8 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - `js/serial.js`: `SerialLink`, the Web Serial wrapper.
   - `js/store.js`: `Store` (localStorage). Holds key/settings/alerts/`localRows` in both modes, plus the offline ledger, `CONTACTS`, `MERCHANTS`, `HOME`.
   - `js/risk.js`: `assessRisk()`, the smart-tap rules. Also runs in Node.
+    - Only the amount decides: a tap is needed when `amount > tapLimit` (or Smart taps is off). New merchant / distance / usual-spend reasons are shown on the tap screen but don't trigger a tap.
+    - `tapLimit` lives in `Store.state` (default $200). `tapLimitFlow()` in dashboard.js asks for it right after a key is linked; the Security panel's **Change** button reopens it.
   - `js/bank.js`: `Bank` chooses `NessieBank` or `LocalBank`. Both return `{balance, transactions, bills, merchants, contacts, home, history}` and support `pay/transfer/payBill(…, mode)`.
   - `js/dashboard.js`: rendering, modals, `startPayment()` → `assessRisk` → `requestApproval()` / `approveTrusted()` → `commit()`.
     - Transfers of $200 or more go through `scamCheckFlow()` → `reviewTransfer()` → `scamWarning()` first.

@@ -43,6 +43,7 @@ function seedState() {
     keyUid: null,
     demoMode: false,
     alwaysTap: false,
+    tapLimit: 200, // payments up to this many dollars skip the tap (risk.js); asked after linking a key
     scamCheck: true, // ask "why are you sending this?" before large transfers (scamcheck.js)
     localRows: [],
     alerts: [

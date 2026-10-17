@@ -34,11 +34,11 @@ Run `python server.py` from the project root (in the background), then open http
 1. The home page renders, and its links go to login → dashboard. The badge reads **Live · Capital One Nessie**.
 2. Connect reader → the status dot turns green.
 3. Simulate fraud *before* linking a key → the charge goes through (the "today's world" contrast).
-4. Link a key → tap the fob → its UID shows and the key tile reads "Protected".
+4. Link a key → tap the fob → its UID shows and the key tile reads "Protected". The tap-limit box opens with $200 filled in → enter $50 and save.
 5. Pay in store → Starbucks $6 → approved with **no tap** (Trusted chip).
-6. Pay in store → Chipotle → the "New merchant" reason shows → tap the fob → ✓ on the matrix, and the row reads "Verified with SwampTag".
+6. Pay in store → UF Bookstore $90 → "Over your $50 tap limit" shows → tap the fob → ✓ on the matrix, and the row reads "Verified with SwampTag".
 7. Simulate fraud → the reasons show distance and spend → tap the white card → ✗ on the matrix, Blocked row, Shield count +1.
-8. Send money and pay a bill → both need a tap. The bill disappears from Upcoming bills.
+8. Send $25 → no tap (under the $50 limit). Pay the $64 Duke Energy bill → needs a tap, and the bill disappears from Upcoming bills.
 9. Send $500 → choose "A family member says they are in trouble" → the warning is read aloud, the fraud line shows, and Cancel keeps the money. Demo code 2468 lets it continue to the tap.
 10. With Auth0 configured: sign in, link a key, then sign in from another browser profile. The key is already linked.
 11. Stop the server (or use `python server.py --offline`) or unplug the Arduino → the offline badge and the T/X keys still work.
