@@ -10,3 +10,7 @@ firmware/**/include/secrets.h
 # Pump pairings and the cached gas merchant (written by server.py)
 pairings.json
 local_state.json
+
+# Personal secrets (Gemini key)
+.env.local
+.venv/

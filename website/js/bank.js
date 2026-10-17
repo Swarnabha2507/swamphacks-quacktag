@@ -162,6 +162,26 @@ const NessieBank = {
     }).catch((err) => console.warn('Deposit to contact failed', err));
   },
 
+  // Demo: the contact first gets topped up, then pays you, so the money is really in Nessie both ways.
+  async requestPaid(contact, amount, note) {
+    const date = todayIso();
+    const dollars = roundDollars(amount);
+    await this.api(`accounts/${contact.accountId}/deposits`, {
+      method: 'POST',
+      body: { medium: 'balance', transaction_date: date, status: 'completed', amount: dollars, description: 'Demo top-up' },
+    });
+    const created = await this.api(`accounts/${contact.accountId}/transfers`, {
+      method: 'POST',
+      body: { transaction_date: date, status: 'completed', amount: dollars, description: `To Albert Gator · ${note}` },
+    });
+    this.remember(created);
+    const mine = await this.api(`accounts/${this.cfg.accountId}/deposits`, {
+      method: 'POST',
+      body: { medium: 'balance', transaction_date: date, status: 'completed', amount: dollars, description: `From ${contact.name} · ${note}` },
+    });
+    this.remember(mine);
+  },
+
   async payBill(bill, mode) {
     await this.api(`bills/${bill.id}`, { method: 'PUT', body: { status: 'completed' } });
     const created = await this.api(`accounts/${this.cfg.accountId}/transfers`, {
@@ -202,6 +222,10 @@ const LocalBank = {
       name: contact.name, initials: contact.initials, sub: note,
       amount: -roundDollars(amount), status: 'approved', verified: mode === 'verified', trusted: mode === 'trusted',
     });
+  },
+
+  async requestPaid(contact, amount, note) {
+    Store.addTransaction({ name: contact.name, initials: contact.initials, sub: note, amount: roundDollars(amount), status: 'received' });
   },
 
   async payBill(bill, mode) {
@@ -251,4 +275,5 @@ const Bank = {
   pay(merchant, amount, mode) { return this.backend.pay(merchant, amount, mode); },
   transfer(contact, amount, note, mode) { return this.backend.transfer(contact, amount, note, mode); },
   payBill(bill, mode) { return this.backend.payBill(bill, mode); },
+  requestPaid(contact, amount, note) { return this.backend.requestPaid(contact, amount, note); },
 };

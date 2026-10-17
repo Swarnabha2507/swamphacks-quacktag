@@ -150,8 +150,8 @@ Only **approved** payments are written to Nessie. Blocked money never moves.
 4. **Smart tap:** Pay in store → Starbucks $6. Approved with no tap.
 5. **Tap needed:** Pay in store → UF Bookstore $90. The **phone terminal** shows $90.00 and "Hold your SwampTag key to the back of the phone". Hold the key there → ✓ on the phone (it says "Approved"), and the purchase lands in Nessie.
 6. **The attack:** Simulate fraud. The thief holds up a **copied key** (an old code) → the terminal shows ✗ "Old key code, possibly a copied key", blocked.
-7. **Scam check:** Send **$500** to Jordan. Choose "A family member says they are in trouble", then type "keep it secret".
-   - The warning is read aloud and Maya gets a heads-up.
+7. **Scam check:** Send **$500** to Diego. Choose "A family member says they are in trouble", then type "keep it secret".
+   - The warning is read aloud and Angel gets a heads-up.
    - Show the fraud-line number, then click **Cancel this transfer**. The money stays.
 8. **Bills:** pay Duke Energy with a tap. The bill is marked completed in Nessie.
 

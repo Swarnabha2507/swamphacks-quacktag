@@ -11,7 +11,7 @@
 
 const SCAM_CHECK_FROM = 200; // ask why for transfers of this many dollars or more
 
-const TRUSTED_CONTACT = { name: 'Maya Patel', relation: 'granddaughter' };
+const TRUSTED_CONTACT = { name: 'Angel', relation: 'friend' };
 
 // Fictional 555 number for the demo. The agent on the call reads out DEMO_VERIFY_CODE.
 const FRAUD_LINE = { label: '(352) 555-0147', tel: '+13525550147', spoken: '3 5 2. 5 5 5. 0 1 4 7' };

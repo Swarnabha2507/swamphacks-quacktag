@@ -11,9 +11,9 @@ const HOME = { lat: 29.6436, lng: -82.3549 }; // University of Florida
 // Same people and merchants that tools/seed_nessie.py creates in Nessie.
 // Amounts are whole dollars because Nessie stores whole dollars.
 const CONTACTS = [
-  { name: 'Jordan Lee', initials: 'JL', accountId: 'local-jordan' },
-  { name: 'Maya Patel', initials: 'MP', accountId: 'local-maya' },
-  { name: 'Chris Nguyen', initials: 'CN', accountId: 'local-chris' },
+  { name: 'Diego', initials: 'DI', accountId: 'local-diego' },
+  { name: 'Swarnabha', initials: 'SW', accountId: 'local-swarnabha' },
+  { name: 'Angel', initials: 'AN', accountId: 'local-angel' },
 ];
 
 const MERCHANTS = [
@@ -44,6 +44,7 @@ function seedState() {
     demoMode: false,
     alwaysTap: false,
     tapLimit: 200, // payments up to this many dollars skip the tap (risk.js); asked after linking a key
+    autoPayRequests: true, // demo: anyone you request money from pays you instantly (bank.js requestPaid)
     scamCheck: true, // ask "why are you sending this?" before large transfers (scamcheck.js)
     localRows: [],
     alerts: [
@@ -52,7 +53,7 @@ function seedState() {
     // Offline backend data (mirrors the Nessie seed)
     balance: 2312,
     transactions: [
-      { id: 'seed-jordan', name: 'Jordan Lee', initials: 'JL', sub: 'Dinner split', amount: 40, status: 'received', date: daysFromNow(-1, 19) },
+      { id: 'seed-diego', name: 'Diego', initials: 'DI', sub: 'Dinner split', amount: 40, status: 'received', date: daysFromNow(-1, 19) },
       merchantRow('m-starbucks', 6, 1),
       merchantRow('m-publix', 62, 2),
       merchantRow('m-starbucks', 5, 4),

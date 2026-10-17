@@ -26,9 +26,9 @@ CUSTOMER = {
 }
 
 FRIENDS = [
-    ("Jordan", "Lee", "JL"),
-    ("Maya", "Patel", "MP"),
-    ("Chris", "Nguyen", "CN"),
+    ("Diego", "Brss", "DI"),
+    ("Swarnabha", "Chakrabarty", "SW"),
+    ("Angel", "Gator", "AN"),
 ]
 
 # role "store" shows up under Pay in store; role "fraud" is used by Simulate fraud.
@@ -119,7 +119,7 @@ def main():
         })
 
     # Nessie transfers have no payee field, so P2P = transfer out of the sender + deposit into the receiver.
-    print("Adding a P2P payment from Jordan...")
+    print("Adding a P2P payment from Diego...")
     jordan = contacts[0]
     post(f"accounts/{jordan['accountId']}/transfers", {
         "transaction_date": day(-1), "status": "completed", "amount": 40,

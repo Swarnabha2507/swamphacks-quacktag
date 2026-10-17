@@ -90,6 +90,11 @@
             </button>
           </div>
 
+          <section class="card quick-send" aria-label="Send again">
+            <div class="card-title"><h2>Send again</h2><span class="card-meta">Tap a person to pay</span></div>
+            <div class="quick-list" id="quick-list"></div>
+          </section>
+
           <section class="card" id="activity">
             <div class="card-title">
               <h2>Recent activity</h2>
@@ -104,36 +109,9 @@
         </div>
 
         <div class="stack">
-          <section class="tile tile-shield" aria-label="Fraud blocked">
-            <div class="shield-body">
-              <div class="tile-name">Protected by SwampTag</div>
-              <div class="shield-amount" id="blocked-total">$0.00</div>
-              <div class="shield-caption">Fraud blocked</div>
-            </div>
-            <div class="shield-footer">
-              <button id="shield-send">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
-                Send
-              </button>
-              <button id="shield-pay">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                Shop
-              </button>
-              <button id="shield-bills">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 .7V2l-1 .7-3-2-3 2-3-2-3 2z"/><path d="M8 8h8"/><path d="M8 12h8"/></svg>
-                Bills
-              </button>
-            </div>
-          </section>
+          
 
-          <section class="card" id="nessie-panel">
-            <div class="card-title">
-              <h2>Capital One Nessie</h2>
-              <span class="badge badge-dot" id="nessie-badge">Offline</span>
-            </div>
-            <p class="small muted" id="nessie-account">Your account, purchases, transfers, deposits and bills live in Nessie. Each call shows up here as it happens.</p>
-            <ul class="nessie-log" id="nessie-log"><li class="empty">No calls yet.</li></ul>
-          </section>
+          
 
           <section class="card" id="security">
             <div class="card-title">
@@ -189,8 +167,12 @@
               <span class="switch"><input type="checkbox" id="smart-toggle"><span class="slider"></span></span>
             </label>
             <label class="toggle">
-              <span><strong>Scam check</strong><br><span class="muted">Ask why before sending $200 or more, and alert Maya (trusted contact) about red flags</span></span>
+              <span><strong>Scam check</strong><br><span class="muted">Ask why before sending $200 or more, and alert Angel (trusted contact) about red flags</span></span>
               <span class="switch"><input type="checkbox" id="scam-toggle"><span class="slider"></span></span>
+            </label>
+            <label class="toggle">
+              <span><strong>Instant request payouts</strong><br><span class="muted">Demo: anyone you request money from tops up their own account and pays you right away, so you never run out</span></span>
+              <span class="switch"><input type="checkbox" id="autopay-toggle"><span class="slider"></span></span>
             </label>
             <label class="toggle">
               <span><strong>Demo mode</strong><br><span class="muted">Show simulated tap buttons (keys T and X)</span></span>
@@ -198,6 +180,39 @@
             </label>
           </section>
         </div>
+      </div>
+
+      <div class="bottom-row">
+        <section class="tile tile-shield" aria-label="Fraud blocked">
+            <div class="shield-body">
+              <div class="tile-name">Protected by SwampTag</div>
+              <div class="shield-amount" id="blocked-total">$0.00</div>
+              <div class="shield-caption">Fraud blocked</div>
+            </div>
+            <div class="shield-footer">
+              <button id="shield-send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
+                Send
+              </button>
+              <button id="shield-pay">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                Shop
+              </button>
+              <button id="shield-bills">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 .7V2l-1 .7-3-2-3 2-3-2-3 2z"/><path d="M8 8h8"/><path d="M8 12h8"/></svg>
+                Bills
+              </button>
+            </div>
+          </section>
+
+        <section class="card" id="nessie-panel">
+            <div class="card-title">
+              <h2>Capital One Nessie</h2>
+              <span class="badge badge-dot" id="nessie-badge">Offline</span>
+            </div>
+            <p class="small muted" id="nessie-account">Your account, purchases, transfers, deposits and bills live in Nessie. Each call shows up here as it happens.</p>
+            <ul class="nessie-log" id="nessie-log"><li class="empty">No calls yet.</li></ul>
+          </section>
       </div>
     </div>
   </main>
