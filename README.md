@@ -15,7 +15,7 @@ Built at SwampHacks (University of Florida) for these tracks:
 ## The solution
 **1. A physical key with a rotating code.**
 - SwampTag links the card to an RFID key. A small Arduino device attached to the key **rewrites a fresh code onto it at intervals**.
-- Risky payments are held until the owner puts the key into the **SwampTag terminal**: a 3D-printed card scanner with a Pixel phone as its screen and NFC reader.
+- Risky payments are held until the owner holds the key to the **SwampTag terminal**: a Pixel phone that acts as the terminal's screen and NFC reader.
 - A thief with a cloned card and your PIN doesn't have the key. A **copied** key carries an old code that the terminal refuses, so the payment is **blocked** and logged.
 
 **2. Smart taps with your own tap limit.**
@@ -47,9 +47,9 @@ For a full walkthrough of every part, see **[docs/HOW_IT_WORKS.md](docs/HOW_IT_W
 
 ```
  Key (fob or card) ◀── rewritten with a fresh code by the key device (Arduino + RC522)
-      │ inserted into the terminal's slot
+      │ held to the back of the phone
       ▼
- Pixel 6a in the printed terminal ── Web NFC ──▶ terminal.html ──USB cable (port forwarding)──┐
+ Pixel 6a phone terminal ─────── Web NFC ──▶ terminal.html ──USB cable (port forwarding)──┐
       ▲  shows amount, ✓ / ✗ and speaks it                                                     ▼
       └──────────── OK / DENY ◀── laptop dashboard ◀── server.py relay (checks the key code) ──┘
                                         │                       └──▶ Nessie API
@@ -59,9 +59,8 @@ For a full walkthrough of every part, see **[docs/HOW_IT_WORKS.md](docs/HOW_IT_W
 | Part | Files |
 |---|---|
 | Phone terminal | [website/terminal.html](website/terminal.html) + [js/terminal.js](website/js/terminal.js): runs on the Pixel, reads the key with Web NFC |
-| Terminal case | [cad/swamptag_terminal.scad](cad/swamptag_terminal.scad): Square-style card scanner for the Pixel 6a. Guide: [cad/README.md](cad/README.md) |
 | Key format | [docs/KEY_FORMAT.md](docs/KEY_FORMAT.md): what the key device writes and how the terminal checks it |
-| Old USB reader | [arduino/SwampTag/SwampTag.ino](arduino/SwampTag/SwampTag.ino), [arduino/SETUP.md](arduino/SETUP.md), [cad/swamptag_reader.scad](cad/swamptag_reader.scad) |
+| Old USB reader | [arduino/SwampTag/SwampTag.ino](arduino/SwampTag/SwampTag.ino), [arduino/SETUP.md](arduino/SETUP.md) |
 | Server | [server.py](server.py): serves the site, forwards `/api/nessie/*` with the key, passes the Auth0 settings, and relays between the dashboard and the phone ([terminal.py](terminal.py), which also checks key codes). Python standard library only |
 | Nessie setup | [tools/seed_nessie.py](tools/seed_nessie.py) |
 | Website | [website/](website/), with one file per job in `js/`: |
@@ -100,7 +99,7 @@ Only **approved** payments are written to Nessie. Blocked money never moves.
    2. Plug the phone into the laptop and allow USB debugging.
    3. On the laptop, open **edge://inspect/#devices** (or chrome://inspect) → **Port forwarding** → add **8000 → localhost:8000**. Keep that tab open.
    4. On the phone, open **localhost:8000/terminal.html** in Chrome and tap **Start terminal**. The dashboard's Terminal row turns green.
-   5. Put the phone in the printed case ([cad/README.md](cad/README.md)) **upside down**, camera end toward the slot.
+   5. Hold the key flat against the **back of the phone, near the camera**, to read it. If the page shows upside down, tap **⟲**.
 5. **Key codes (when the key device is ready):** put the same `KEY_SECRET` in `.env` and in the key device ([docs/KEY_FORMAT.md](docs/KEY_FORMAT.md)). Without it, the terminal accepts any `ST1` code or the tag's serial number.
 
 **Backups:**
@@ -111,10 +110,10 @@ Only **approved** payments are written to Nessie. Blocked money never moves.
 ## Demo script (about 4 minutes)
 1. **Sign in** with Auth0 (Google + MFA). The dashboard shows your name and the **Live · Capital One Nessie** badge.
 2. **Without protection:** click **Simulate fraud**. The charge goes through.
-3. **Link a key:** click **Link a key**, then insert the key into the terminal's slot. The key is saved to your Auth0 profile. When asked how much you can spend before a tap is needed, enter **$50**.
+3. **Link a key:** click **Link a key**, then hold the key to the back of the phone. The key is saved to your Auth0 profile. When asked how much you can spend before a tap is needed, enter **$50**.
 4. **Smart tap:** Pay in store → Starbucks $6. Approved with no tap.
-5. **Tap needed:** Pay in store → UF Bookstore $90. The **phone terminal** shows $90.00 and "Insert your SwampTag key ▼". Insert the key → ✓ on the phone (it says "Approved"), and the purchase lands in Nessie.
-6. **The attack:** Simulate fraud. The thief inserts a **copied key** (an old code) → the terminal shows ✗ "Old key code, possibly a copied key", blocked.
+5. **Tap needed:** Pay in store → UF Bookstore $90. The **phone terminal** shows $90.00 and "Hold your SwampTag key to the back of the phone". Hold the key there → ✓ on the phone (it says "Approved"), and the purchase lands in Nessie.
+6. **The attack:** Simulate fraud. The thief holds up a **copied key** (an old code) → the terminal shows ✗ "Old key code, possibly a copied key", blocked.
 7. **Scam check:** Send **$500** to Jordan. Choose "A family member says they are in trouble", then type "keep it secret".
    - The warning is read aloud and Maya gets a heads-up.
    - Show the fraud-line number, then click **Cancel this transfer**. The money stays.

@@ -753,7 +753,7 @@ function phoneSetupFlow() {
     <p class="modal-text">${link.connected ? 'The phone terminal is connected.' : 'The phone terminal is not connected yet.'}</p>
     <ol class="setup-steps">
       <li>On the Pixel: <strong>Settings → About phone</strong>, tap <strong>Build number</strong> 7 times, then turn on <strong>USB debugging</strong> in Developer options.</li>
-      <li>Plug the phone into this laptop with the USB-C cable that runs through the terminal case, and allow USB debugging on the phone.</li>
+      <li>Plug the phone into this laptop with a USB-C data cable, and allow USB debugging on the phone (tick Always allow).</li>
       <li>On this laptop, open <strong>edge://inspect/#devices</strong> (or chrome://inspect). Click <strong>Port forwarding</strong> and add <strong>${port} → localhost:${port}</strong>. Keep that tab open.</li>
       <li>On the phone, open <strong>localhost:${port}/terminal.html</strong> in Chrome and tap <strong>Start terminal</strong>.</li>
     </ol>

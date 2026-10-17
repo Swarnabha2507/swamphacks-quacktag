@@ -1,6 +1,6 @@
 # SwampTag key format
 
-This is the agreement between the **key device** (Arduino + RC522 that rewrites the fob) and the **phone terminal** (the Pixel in the card-scanner case, which reads the fob). The format below is a **proposal**; the key-device builder should confirm it or tell us what to change.
+This is the agreement between the **key device** (Arduino + RC522 that rewrites the fob) and the **phone terminal** (the Pixel 6a, which reads the fob with Web NFC). The format below is a **proposal**; the key-device builder should confirm it or tell us what to change.
 
 ## What the key device writes
 

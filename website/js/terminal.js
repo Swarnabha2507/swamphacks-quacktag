@@ -1,14 +1,14 @@
-// SwampTag phone terminal (runs on the Pixel inside the card-scanner case).
+// SwampTag phone terminal (runs on the Pixel 6a).
 // - Shows what the dashboard is waiting for (amount, merchant) and the result.
 // - Reads the key with Web NFC (Chrome on Android) and sends it to server.py,
 //   which checks the key's code and tells the dashboard (terminal.py).
-// The phone sits upside down in the case so its NFC spot is over the slot, so the
-// page asks for upside-down portrait, or rotates itself if Android says no.
+// The key is held against the back of the phone, near the camera. The ⟲ button
+// turns the picture upside down if the phone is ever mounted that way.
 
 const POLL_MS = 400;
 const RESULT_SHOW_MS = 5000;
 const SAME_TAG_IGNORE_MS = 2500;
-const FLIP_KEY = 'swamptag-terminal-flip';
+const FLIP_KEY = 'swamptag-terminal-flip-v2';
 
 const $ = (sel) => document.querySelector(sel);
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -18,6 +18,8 @@ let resultShownAt = 0;
 let lastRead = { serial: '', at: 0 };
 let notice = '';
 let noticeTimer = null;
+let nfcStatus = { text: 'Tap Start terminal to turn on the key reader', kind: 'badge-offline' };
+let laptopOk = true;
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -54,8 +56,7 @@ function render() {
     html = `
       <p class="term-merchant">Link a new key</p>
       ${TAP_ICON}
-      <p class="term-prompt">Insert the key you want to link</p>
-      <div class="term-arrow" aria-hidden="true">▼</div>`;
+      <p class="term-prompt">Hold the key you want to link to the back of the phone</p>`;
   } else if (request && !result) {
     const reasons = (request.reasons || []).slice(0, 3);
     html = `
@@ -63,8 +64,7 @@ function render() {
       <div class="term-amount">${money.format(request.amount || 0)}</div>
       ${reasons.length ? `<div class="term-reasons">${reasons.map((r) => `<span class="badge badge-amber">${escapeHtml(r)}</span>`).join('')}</div>` : ''}
       ${TAP_ICON}
-      <p class="term-prompt">Insert your SwampTag key</p>
-      <div class="term-arrow" aria-hidden="true">▼</div>`;
+      <p class="term-prompt">Hold your SwampTag key to the back of the phone</p>`;
   } else {
     html = `
       <div class="term-idle">${TAP_ICON}</div>
@@ -99,6 +99,10 @@ async function poll() {
   try {
     const res = await fetch('/api/terminal/state', { cache: 'no-store' });
     const next = await res.json();
+    if (!laptopOk) {
+      laptopOk = true;
+      showStatus(); // back online: show the key reader status again
+    }
     if (next.seq !== current.seq) {
       const newResult = next.result && next.result !== current.result;
       current = next;
@@ -111,7 +115,8 @@ async function poll() {
       render(); // result timed out, back to Ready
     }
   } catch {
-    setStatus('Laptop not reachable. Check port forwarding.', 'badge-red');
+    laptopOk = false;
+    showStatus();
   }
 }
 
@@ -169,14 +174,21 @@ async function startNfc() {
       }
       sendRead({ serialNumber, texts: textsFrom(message) });
     });
-    reader.addEventListener('readingerror', () => flash("Couldn't read that key. Hold it still in the slot."));
+    reader.addEventListener('readingerror', () => flash("Couldn't read that key. Hold it still near the camera."));
   } catch (err) {
     setStatus(`Key reader off: ${err.message}`, 'badge-red');
     $('#demo-buttons').classList.remove('hidden');
   }
 }
 
+// Key reader status. A lost laptop connection shows on top of it until polling works again.
 function setStatus(text, kind) {
+  nfcStatus = { text, kind };
+  showStatus();
+}
+
+function showStatus() {
+  const { text, kind } = laptopOk ? nfcStatus : { text: 'Laptop not reachable. Check the USB cable and port forwarding.', kind: 'badge-red' };
   const el = $('#nfc-status');
   el.className = `badge badge-dot ${kind}`;
   el.textContent = text;
@@ -191,22 +203,20 @@ function setFlipped(on) {
 
 async function enterTerminalMode() {
   try { await document.documentElement.requestFullscreen(); } catch { /* not allowed */ }
-  // Upside-down portrait puts the phone's NFC spot over the case's slot.
-  let locked = false;
-  try {
-    await screen.orientation.lock('portrait-secondary');
-    locked = true;
-  } catch { /* Android may refuse */ }
+  try { await screen.orientation.lock('portrait-primary'); } catch { /* Android may refuse */ }
   let saved = null;
   try { saved = localStorage.getItem(FLIP_KEY); } catch { /* storage blocked */ }
-  setFlipped(saved === null ? !locked : saved === '1');
+  setFlipped(saved === '1');
   try { await navigator.wakeLock.request('screen'); } catch { /* keep-awake not available */ }
 }
 
 $('#start-btn').addEventListener('click', async () => {
   $('#start').classList.add('hidden');
+  // Start NFC first: its permission prompt needs this tap, and full screen
+  // and the orientation lock would use it up if they went first.
+  const nfc = startNfc();
   await enterTerminalMode();
-  await startNfc();
+  await nfc;
 });
 $('#flip-btn').addEventListener('click', () => setFlipped(!document.body.classList.contains('flipped')));
 document.querySelectorAll('[data-sim]').forEach((b) => {
@@ -223,5 +233,6 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 render();
+showStatus();
 poll();
 setInterval(poll, POLL_MS);

@@ -4,9 +4,8 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
 - **Tracks:** Hardware & Physical Computing, First Timers, Capital One – Best Use of Nessie, Best Use of Auth0.
 - **User:** a first-time hackathon participant who wants the hardware kept as simple as possible.
 - **Current hardware (since 2026-10-17):**
-  - **The reader is the user's Pixel 6a.** It runs `website/terminal.html` (Web NFC) inside a 3D-printed card-scanner case.
+  - **The reader is the user's Pixel 6a.** It runs `website/terminal.html` (Web NFC). (The 3D-printed cases were dropped on 2026-10-17.)
   - The Arduino + RC522 is now attached to the key and rewrites it at intervals. That **key device is a teammate's job**: don't build it, only agree the format (`docs/KEY_FORMAT.md`).
-  - **Printer:** Prusa CORE One+ (250 × 220 × 270 mm), sliced in PrusaSlicer.
 
 ## Layout
 - `arduino/SwampTag/SwampTag.ino`: UNO R4 WiFi + RC522 sketch. LED matrix feedback, no other parts.
@@ -31,7 +30,7 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - Both are **committed to the private repo on purpose** (the user's decision), so teammates share one Nessie account.
 - `website/`: static site, no build step.
   - `terminal.html` + `js/terminal.js`: the **phone terminal page**.
-    - One "Start terminal" tap does all of these: full screen, `screen.orientation.lock('portrait-secondary')` (falling back to a CSS `.flipped` 180° rotation, with a ⟲ toggle), a wake lock, and `NDEFReader.scan()`.
+    - One "Start terminal" tap does all of these: `NDEFReader.scan()` **first** (its permission prompt needs the tap; full screen and the orientation lock would use the tap up), then full screen, a portrait lock and a wake lock. The ⟲ button flips the picture 180° (saved in localStorage).
     - It polls `/api/terminal/state` every 400 ms and posts reads.
     - It shows Correct key / Wrong key demo buttons when Web NFC isn't available.
   - `js/terminal-link.js`: `TerminalLink`. Same API as `SerialLink`, talking to the relay. **The dashboard uses it** (`const link = new TerminalLink()`).
@@ -58,17 +57,6 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
     - The Management API audience and scopes are requested at login.
     - The key is kept in `user_metadata.swamptag_key`.
     - A `sessionStorage` flag marks a demo-account session.
-- `cad/swamptag_terminal.scad`: **the phone terminal case**, parametric OpenSCAD (`part` = assembly/body/tray/fit_test).
-  - A Square-style rounded wedge, about 97 × 168 × 127 mm, at a 30° tilt.
-  - The Pixel 6a sits in portrait, **upside down**, so its NFC spot (near the camera) is over the slot.
-  - The key slot runs parallel under the phone and stops `slot_past_nfc` beyond `nfc_from_top`.
-  - The face coordinates come from `on_face()`.
-- `cad/swamptag_keybox.scad`: the **key dock**, a small case for the Adafruit Feather RP2040 + RC522 + 7 female-to-female jumpers (`part` = assembly/base/lid/fit_test).
-  - Both boards' pins point down, so there's a wire bay underneath with a comb and clips.
-  - Flat flush lid with a fob cradle over the RC522 antenna.
-  - The RC522 is 59.4 × 39.1 mm (the user's measurement). The box is 65 × 73 × 28.5 mm; 28.5 is the minimum for downward pins plus 14 mm female plugs, and the user asked for about 1 in.
-- `cad/swamptag_reader.scad`: the old Arduino reader box (`part` = assembly/base/lid/diffuser/fit_test).
-- Both CAD files use core OpenSCAD only. The guide is `cad/README.md`. OpenSCAD isn't installed here, so the user exports the STLs.
 - `docs/KEY_FORMAT.md`: the agreement with the key-device teammate (ST1 record, HMAC, counter, NTAG215 advice, antenna off between writes).
 - `.claude/skills/redesign-existing-projects/`: UI audit skill (MIT, from Leonxlnx/taste-skill), used for the cleanup pass.
 - `STYLE_GUIDE.md`: tokens and components. Banking-app look: gradient tiles, navy/blue, red only for accents and danger. Geist font, square badges, tabular figures.

@@ -8,7 +8,6 @@ description: Run the SwampTag demo end to end. Serve the site, connect the Pixel
 ## Paths
 - Site root: `website/`. Phone terminal page: `website/terminal.html`.
 - Server: `server.py`, with the relay and key check in `terminal.py`.
-- Case: `cad/swamptag_terminal.scad`. Guide: `cad/README.md`.
 - Old Arduino reader: CLI `$cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"`, FQBN `arduino:renesas_uno:unor4wifi`, sketch `arduino/SwampTag`.
 
 ## Serve the site
@@ -37,10 +36,10 @@ Run `python server.py` from the project root (in the background), then open http
 1. The home page renders, and its links go to login → dashboard. The badge reads **Live · Capital One Nessie**.
 2. The phone terminal is connected: the dashboard's Terminal row is green, and the phone shows "Ready for payment".
 3. Simulate fraud *before* linking a key → the charge goes through (the "today's world" contrast).
-4. Link a key: click Link a key → the phone says "Insert the key you want to link" → insert the key → its ID shows on the dashboard. In the tap-limit box, enter $50.
+4. Link a key: click Link a key → the phone says "Hold the key you want to link to the back of the phone" → hold it near the camera → its ID shows on the dashboard. In the tap-limit box, enter $50.
 5. Pay in store → Starbucks $6 → approved with **no tap**. The phone shows "Within your tap limit".
-6. Pay in store → UF Bookstore $90 → the phone shows $90.00 and "Insert your SwampTag key ▼" → insert the key → ✓ on the phone and the dashboard.
-7. Simulate fraud → insert a copied key or a different key → ✗ on the phone with the reason, a Blocked row, and the Shield count goes up by 1.
+6. Pay in store → UF Bookstore $90 → the phone shows $90.00 and the key prompt → hold the key to the back → ✓ on the phone and the dashboard.
+7. Simulate fraud → hold up a copied key or a different key → ✗ on the phone with the reason, a Blocked row, and the Shield count goes up by 1.
 8. Pay the $64 Duke Energy bill → needs the key, and the bill disappears from Upcoming bills.
 9. Send $500 → choose "A family member says they are in trouble" → the warning is read aloud and the fraud line shows. Cancel keeps the money; demo code 2468 continues to the key.
 10. With Auth0 configured: sign in, link a key, then sign in from another browser profile. The key is already linked.
@@ -52,7 +51,7 @@ Run `python server.py` from the project root (in the background), then open http
 |---|---|
 | Phone can't open `localhost:8000` | Port forwarding is off, or the inspect tab is closed. Re-add `8000 → localhost:8000` in edge://inspect, and make sure the server is running. |
 | Terminal says "No Web NFC here" | It's not running in Chrome on Android, or NFC is off (Settings → Connected devices → NFC). Use the demo buttons meanwhile. |
-| The phone doesn't react to the key | Hold it in the slot for a second. Check the key in the NFC Tools app on the bare phone. If the phone sees only the serial number, the key needs NTAG215 tags (`docs/KEY_FORMAT.md`). Re-measure `nfc_from_top` for the case. |
+| The phone doesn't react to the key | Hold it flat against the back, near the camera, for a second. Check the key in the NFC Tools app on the bare phone. If the phone sees only the serial number, the key needs NTAG215 tags (`docs/KEY_FORMAT.md`). |
 | Every key is blocked with "Key code doesn't match" | `KEY_SECRET` in `.env` doesn't match the key device's. Restart `server.py` after changing `.env`. |
 | A good key is blocked with "Old key code" | The key device didn't raise its counter, or `key_counters.json` holds a higher counter from testing. Delete that file and restart the server. |
 | Terminal picture is upside down | Tap the ⟲ button in the terminal's corner. The choice is remembered. |
