@@ -55,7 +55,7 @@
         <div class="stack">
           <section class="tile tile-checking" aria-label="Checking account">
             <div class="tile-row">
-              <div class="tile-name">SwampTag Checking<small>...4821</small></div>
+              <div class="tile-name"><span id="acct-name">SwampTag Checking</span><small id="acct-last4">...4821</small></div>
               <div>
                 <div class="tile-amount" id="balance"><span class="skeleton skeleton-amount"></span></div>
                 <div class="tile-caption">Available balance</div>
@@ -124,6 +124,15 @@
                 Bills
               </button>
             </div>
+          </section>
+
+          <section class="card" id="nessie-panel">
+            <div class="card-title">
+              <h2>Capital One Nessie</h2>
+              <span class="badge badge-dot" id="nessie-badge">Offline</span>
+            </div>
+            <p class="small muted" id="nessie-account">Your account, purchases, transfers, deposits and bills live in Nessie. Each call shows up here as it happens.</p>
+            <ul class="nessie-log" id="nessie-log"><li class="empty">No calls yet.</li></ul>
           </section>
 
           <section class="card" id="security">

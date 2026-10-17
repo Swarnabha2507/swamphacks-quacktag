@@ -12,8 +12,11 @@ Only uses the Python standard library.
 
 import json
 import os
+import re
 import sys
 import threading
+import time
+from collections import deque
 import urllib.error
 import urllib.request
 from datetime import date
@@ -59,11 +62,48 @@ PUMP = PumpAuthorizer(CHECKER, os.environ.get("CARD_PIN", "1234").strip() or "12
 GAS_MERCHANT = {"name": "Swamp Gas & Go", "initials": "SG", "place": "Gainesville, FL", "category": "Gas",
                 "lat": 29.6516, "lng": -82.3248, "role": "pump",
                 "address": {"street_number": "1300", "street_name": "SW 13th St", "city": "Gainesville", "state": "FL", "zip": "32608"}}
-QUIET_PATHS = ("/api/terminal/state", "/api/terminal/events")  # polled several times a second
+QUIET_PATHS = ("/api/terminal/state", "/api/terminal/events", "/api/nessie-log")  # polled several times a second
 
 
-def nessie_request(method, path, body=None, query=None):
+# Recent Nessie API calls, shown live on the dashboard ("Capital One Nessie" panel).
+NESSIE_LOG = deque(maxlen=40)
+NESSIE_LOG_LOCK = threading.Lock()
+_log_seq = 0
+
+
+def log_nessie_call(method, path, status, source, body):
+    global _log_seq
+    short = re.sub(r"([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", lambda m: m.group(1)[:4] + "..", path.lstrip("/"))
+    if method == "GET" and status == 404 and short.rsplit("/", 1)[-1] in ("purchases", "deposits", "transfers", "bills", "withdrawals"):
+        status = "empty"  # Nessie answers 404 for an empty list
+    detail = ""
+    if isinstance(body, dict):
+        if "amount" in body:
+            detail = f"${body['amount']}"
+        if body.get("description"):
+            detail += f" · {body['description']}"
+        elif body.get("name"):
+            detail += f"{body['name']}"
+        elif body.get("status"):
+            detail += f" status → {body['status']}"
+    with NESSIE_LOG_LOCK:
+        _log_seq += 1
+        NESSIE_LOG.append({"n": _log_seq, "at": time.strftime("%H:%M:%S"), "method": method, "path": short,
+                           "status": status, "source": source, "detail": detail.strip(" ·")})
+
+
+def nessie_request(method, path, body=None, query=None, source="server"):
     """Calls Nessie and returns (status, parsed_json_or_text). Raises OSError if unreachable."""
+    try:
+        status, payload = _nessie_call(method, path, body, query)
+    except OSError:
+        log_nessie_call(method, path, "offline", source, body)
+        raise
+    log_nessie_call(method, path, status, source, body)
+    return status, payload
+
+
+def _nessie_call(method, path, body=None, query=None):
     params = list(query or []) + [("key", API_KEY)]
     url = f"{NESSIE_BASE}/{path.lstrip('/')}?{urlencode(params)}"
     data = json.dumps(body).encode() if body is not None else None
@@ -106,7 +146,7 @@ def nessie_config():
     if not ids:
         return {"live": False, "reason": "Nessie not seeded yet (run python tools/seed_nessie.py)"}
     try:
-        status, _ = nessie_request("GET", f"accounts/{ids['accountId']}")
+        status, _ = nessie_request("GET", f"accounts/{ids['accountId']}", source="live check")
     except OSError as err:
         return {"live": False, "reason": f"Nessie unreachable ({err.__class__.__name__})"}
     if status != 200:
@@ -130,7 +170,7 @@ def gas_merchant(create=False):
         return {"id": state["gasMerchantId"], **{k: v for k, v in GAS_MERCHANT.items() if k != "address"}}
     if not create:
         return None
-    status, data = nessie_request("POST", "merchants", {
+    status, data = nessie_request("POST", "merchants", source="pump", body={
         "name": GAS_MERCHANT["name"], "category": GAS_MERCHANT["category"], "address": GAS_MERCHANT["address"],
         "geocode": {"lat": GAS_MERCHANT["lat"], "lng": GAS_MERCHANT["lng"]}})
     merchant_id = (data.get("objectCreated") or {}).get("_id") if isinstance(data, dict) else None
@@ -141,23 +181,54 @@ def gas_merchant(create=False):
     return gas_merchant()
 
 
-def record_pump_sale(total, verified):
-    """Writes an approved pump sale to Nessie in the background (skipped when offline)."""
+def nessie_list(path):
+    """GET a Nessie list. Nessie answers 404 for an empty list."""
+    status, data = nessie_request("GET", path, source="pump")
+    if status == 404:
+        return []
+    if status != 200 or not isinstance(data, list):
+        raise OSError(f"Nessie GET {path.split('/')[-1]} returned HTTP {status}")
+    return data
+
+
+def nessie_balance(ids):
+    """Available balance, worked out from the account's Nessie transactions the same way
+    the dashboard does (Nessie doesn't change account.balance when purchases are posted)."""
+    account_id = ids["accountId"]
+    purchases = nessie_list(f"accounts/{account_id}/purchases")
+    deposits = nessie_list(f"accounts/{account_id}/deposits")
+    transfers = nessie_list(f"accounts/{account_id}/transfers")
+    spent = sum(p.get("amount", 0) for p in purchases if p.get("status") != "cancelled")
+    return ids.get("openingBalance", 0) + sum(d.get("amount", 0) for d in deposits) - spent - sum(t.get("amount", 0) for t in transfers)
+
+
+def settle_pump_sale(result, total):
+    """After the card, PIN and key pass: the bank (Nessie) has the final say.
+    Declines when the balance is too low; otherwise posts the purchase at Swamp Gas & Go
+    and adds its Nessie ID and the new balance to the receipt. Offline: approve as is."""
     ids = load_ids()
     if not API_KEY or not ids or total <= 0:
-        return
-
-    def work():
-        try:
-            merchant = gas_merchant(create=True)
-            nessie_request("POST", f"accounts/{ids['accountId']}/purchases", {
-                "merchant_id": merchant["id"], "medium": "balance", "purchase_date": date.today().isoformat(),
-                "status": "completed", "amount": int(round(total)),
-                "description": "SwampTag verified · Pump" if verified else "No SwampTag check · Pump"})
-        except OSError as err:
-            print(f"Pump sale not recorded in Nessie: {err}")
-
-    threading.Thread(target=work, daemon=True).start()
+        result["nessie"] = {"recorded": False, "note": "Offline demo: not sent to Nessie"}
+        return result
+    try:
+        balance = nessie_balance(ids)
+        if total > balance:
+            return {"approved": False, "step": "funds",
+                    "reason": f"Insufficient funds. Your balance is ${balance:,.0f}"}
+        merchant = gas_merchant(create=True)
+        status, data = nessie_request("POST", f"accounts/{ids['accountId']}/purchases", source="pump", body={
+            "merchant_id": merchant["id"], "medium": "balance", "purchase_date": date.today().isoformat(),
+            "status": "completed", "amount": int(round(total)),
+            "description": "SwampTag verified · Pump" if result.get("verified") else "No SwampTag check · Pump"})
+        purchase_id = (data.get("objectCreated") or {}).get("_id") if isinstance(data, dict) else None
+        if status not in (200, 201) or not purchase_id:
+            raise OSError(f"Nessie refused the purchase (HTTP {status})")
+        result["nessie"] = {"recorded": True, "purchaseId": purchase_id, "merchant": merchant["name"],
+                            "balanceAfter": balance - int(round(total))}
+    except OSError as err:
+        print(f"Pump sale not recorded in Nessie: {err}")
+        result["nessie"] = {"recorded": False, "note": "Nessie didn't answer, so the sale wasn't recorded"}
+    return result
 
 
 def build_config():
@@ -214,7 +285,7 @@ class Handler(SimpleHTTPRequestHandler):
                 total = 0
             result = PUMP.authorize(read("card"), str(body.get("pin", "")), read("key"), total, body.get("items", []))
             if result["approved"]:
-                record_pump_sale(total, result.get("verified", False))
+                result = settle_pump_sale(result, total)
             print(f"Pump: {'APPROVED' if result['approved'] else 'DECLINED'} ${total} {result.get('reason', '')}")
             return self.send_json(200, result)
         if route == "pair":
@@ -260,6 +331,9 @@ class Handler(SimpleHTTPRequestHandler):
         parts = urlsplit(self.path)
         if parts.path == "/api/config" and method == "GET":
             return self.send_json(200, build_config())
+        if parts.path == "/api/nessie-log" and method == "GET":
+            with NESSIE_LOG_LOCK:
+                return self.send_json(200, {"calls": list(NESSIE_LOG)})
         if parts.path.startswith("/api/terminal/"):
             return self.handle_terminal(method, parts)
         if parts.path.startswith("/api/pump/"):
@@ -277,7 +351,7 @@ class Handler(SimpleHTTPRequestHandler):
         path = parts.path[len("/api/nessie/"):]
         query = [(k, v) for k, v in parse_qsl(parts.query) if k != "key"]
         try:
-            status, payload = nessie_request(method, path, body, query)
+            status, payload = nessie_request(method, path, body, query, source="dashboard")
         except OSError as err:
             return self.send_json(502, {"error": f"Nessie unreachable: {err}"})
         self.send_json(status, payload)

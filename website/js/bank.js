@@ -68,12 +68,14 @@ const NessieBank = {
   },
 
   async load() {
-    const { accountId, merchants, contacts, openingBalance, home } = this.cfg;
-    const [purchases, deposits, transfers, bills] = await Promise.all([
+    const { accountId, customerId, merchants, contacts, openingBalance, home } = this.cfg;
+    const [purchases, deposits, transfers, bills, account, customer] = await Promise.all([
       this.api(`accounts/${accountId}/purchases`, { list: true }),
       this.api(`accounts/${accountId}/deposits`, { list: true }),
       this.api(`accounts/${accountId}/transfers`, { list: true }),
       this.api(`accounts/${accountId}/bills`, { list: true }),
+      this.api(`accounts/${accountId}`).catch(() => null),
+      customerId ? this.api(`customers/${customerId}`).catch(() => null) : null,
     ]);
 
     const times = Store.state.liveTimes || {};
@@ -130,6 +132,9 @@ const NessieBank = {
       contacts,
       home,
       history: purchases.filter((p) => p.status !== 'cancelled').map((p) => ({ merchantId: p.merchant_id, amount: p.amount })),
+      // The account and its owner, straight from Nessie
+      account: account ? { nickname: account.nickname || 'Checking', last4: String(account.account_number || '').slice(-4), type: account.type } : null,
+      customer: customer ? { firstName: customer.first_name, lastName: customer.last_name } : null,
     };
   },
 

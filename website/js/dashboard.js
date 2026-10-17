@@ -65,6 +65,53 @@ function displayBalance() {
 
 function renderBalance() {
   $('#balance').textContent = money.format(displayBalance());
+  if (snap.account) {
+    $('#acct-name').textContent = snap.account.nickname;
+    if (snap.account.last4) $('#acct-last4').textContent = `...${snap.account.last4}`;
+  }
+  if (snap.customer && snap.customer.firstName && !Auth.profile) greet(snap.customer.firstName);
+}
+
+// ---------- Capital One Nessie: live API calls (server.py logs every call) ----------
+
+let nessieSeen = 0;
+let nessieFirstPoll = true;
+
+function nessieAccountLine() {
+  if (!Bank.live) return `Offline: ${Bank.offlineReason || 'Nessie unavailable'}. Showing demo data.`;
+  const a = snap && snap.account;
+  const c = snap && snap.customer;
+  return `${c ? `${c.firstName} ${c.lastName}` : 'Account'} · ${a ? `${a.type || 'Checking'} ••${a.last4}` : ''} · balance and activity read from Nessie`;
+}
+
+async function pollNessieLog() {
+  let calls;
+  try {
+    calls = (await (await fetch('/api/nessie-log', { cache: 'no-store' })).json()).calls;
+  } catch {
+    return;
+  }
+  const badge = $('#nessie-badge');
+  badge.className = `badge badge-dot ${Bank.live ? 'badge-live' : 'badge-offline'}`;
+  badge.textContent = Bank.live ? 'Live' : 'Offline';
+  $('#nessie-account').textContent = nessieAccountLine();
+
+  const fresh = calls.filter((c) => c.n > nessieSeen);
+  if (calls.length) nessieSeen = calls[calls.length - 1].n;
+  // A sale from the phone's gas pump was written to Nessie: show it in Recent activity.
+  if (!nessieFirstPoll && fresh.some((c) => c.source === 'pump' && c.method === 'POST' && c.path.endsWith('/purchases') && c.status === 201)) {
+    toast('A gas pump sale was just recorded in Nessie.');
+    refresh().then(() => renderAll(true));
+  }
+  nessieFirstPoll = false;
+
+  const shown = calls.filter((c) => c.source !== 'live check').slice(-8).reverse();
+  $('#nessie-log').innerHTML = shown.map((c) => `
+    <li>
+      <span class="nl-method nl-${escapeHtml(c.method.toLowerCase())}">${escapeHtml(c.method)}</span>
+      <span class="nl-main"><span class="mono">/${escapeHtml(c.path)}</span>${c.detail ? `<small>${escapeHtml(c.detail)}</small>` : ''}</span>
+      <span class="nl-meta"><b class="${c.status === 'empty' || (c.status >= 200 && c.status < 300) ? 'ok' : 'bad'}">${escapeHtml(String(c.status))}</b><small>${escapeHtml(c.source)} · ${escapeHtml(c.at)}</small></span>
+    </li>`).join('') || '<li class="empty">No calls yet.</li>';
 }
 
 function renderTransactions(highlightNewest) {
@@ -859,6 +906,8 @@ greet('Albert');
   }
   await Bank.init();
   await refresh();
+  pollNessieLog();
+  setInterval(pollNessieLog, 3000);
   if (!Bank.live) toast(`Using offline demo data: ${Bank.offlineReason}`);
   link.reconnect();
 })();

@@ -175,6 +175,13 @@ function busyScreen() {
   return `<div class="pump-center">${TAP_ICON}<h1 class="pump-title">Checking your key…</h1></div>`;
 }
 
+// Proof that the sale went to the bank: Capital One's Nessie API (see server.py settle_pump_sale).
+function nessieLine(n) {
+  if (!n) return '';
+  if (!n.recorded) return `<div class="receipt-nessie muted small">${escapeHtml(n.note || '')}</div>`;
+  return `<div class="receipt-nessie small">Recorded in Capital One Nessie · purchase ${escapeHtml(n.purchaseId.slice(0, 8))}…<br>New balance <b class="num">${money.format(n.balanceAfter)}</b></div>`;
+}
+
 function resultScreen() {
   const r = state.result;
   if (r.approved) {
@@ -186,6 +193,7 @@ function resultScreen() {
           ${cartLines().map((l) => `<div><span>${escapeHtml(l.label)}</span><span class="num">${money.format(l.price)}</span></div>`).join('')}
           <div class="receipt-total"><span>Total</span><span class="num">${money.format(cartTotal())}</span></div>
           <div class="muted small">SwampTag Debit •••• ${escapeHtml(r.card.last4)} · ${r.verified ? 'Verified with SwampTag key' : 'Key matched (ID only)'}</div>
+          ${nessieLine(r.nessie)}
         </div>
         <p class="muted small">Put your key back on its dock so it gets a fresh code.</p>
         <button class="btn btn-primary btn-block" data-act="new">New sale</button>

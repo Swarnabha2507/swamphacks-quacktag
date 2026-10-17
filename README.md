@@ -82,6 +82,10 @@ For a full walkthrough of every part, see **[docs/HOW_IT_WORKS.md](docs/HOW_IT_W
 | Purchases | Card payments. History decides what's a "known merchant" and "usual spend" |
 | Transfers + Deposits | Peer-to-peer payments: a transfer out of Albert plus a deposit into the friend's account |
 | Bills (`PUT /bills/{id}`) | Upcoming bills. Paying one needs a tap and marks it completed |
+| Gas pump (`pump.html`) | Before approving, the server reads the account's purchases, deposits and transfers from Nessie to get the balance. **Nessie decides "Insufficient funds"**. Approved sales are posted as Nessie purchases at the "Swamp Gas & Go" merchant. The receipt shows the Nessie purchase ID and the new balance |
+| Accounts + Customers (GET) | The dashboard's account tile (nickname, last 4 of the account number) and greeting come from Nessie |
+
+**See it live:** the dashboard's **Capital One Nessie** panel lists every Nessie API call as it happens (method, endpoint, status, and which part of the app made it). A sale on the phone's pump shows up there and in Recent activity within a few seconds.
 
 Only **approved** payments are written to Nessie. Blocked money never moves.
 

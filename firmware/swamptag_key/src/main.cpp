@@ -14,6 +14,8 @@
 // Wiring (RC522 → Feather RP2040): SDA→10, RST→9, SCK→SCK, MOSI→MO, MISO→MI, GND→GND, 3.3V→3V.
 // Colours and troubleshooting: README.md in this folder.
 
+#ifndef WIRING_TEST  // env:wiring builds src/wiring_test.cpp instead
+
 #include <Arduino.h>
 #include <SPI.h>
 #include <MFRC522.h>
@@ -103,6 +105,46 @@ bool writeAndCheck(const String &text) {
   return true;
 }
 
+// ---------- RC522 check ----------
+// The reader's version register answers 0x91/0x92 (or 0x88/0x12/0xB2 on clones).
+// 0x00 or 0xFF means nothing answered on SPI: a data wire is loose or on the wrong pin.
+
+bool readerReady = false;
+unsigned long lastReaderCheck = 0;
+
+bool startReader(const char *readyMsg) {
+  rfid.PCD_Init();
+  delay(50);
+  const byte version = rfid.PCD_ReadRegister(MFRC522::VersionReg);
+  readerReady = version != 0x00 && version != 0xFF;
+  if (readerReady) {
+    Serial.print("READER OK (RC522 version 0x");
+    Serial.print(version, HEX);
+    Serial.println(")");
+    Serial.println(readyMsg);
+    rfid.PCD_AntennaOff();
+  } else {
+    Serial.print("ERROR:READER no answer from the RC522 (version 0x");
+    Serial.print(version, HEX);
+    Serial.println("). Check: SDA->10, SCK->SCK, MOSI->MO, MISO->MI, RST->9, 3.3V->3V, GND->GND");
+    led(120, 0, 0);
+  }
+  return readerReady;
+}
+
+// Retries every 2 s, so fixing a wire works without pressing reset.
+bool readerUp(const char *readyMsg) {
+  if (readerReady) return true;
+  if (millis() - lastReaderCheck < 2000) return false;
+  lastReaderCheck = millis();
+  return startReader(readyMsg);
+}
+
+void waitForMonitor() {
+  const unsigned long start = millis();  // give a Serial Monitor a moment to connect
+  while (!Serial && millis() - start < 1500) delay(10);
+}
+
 #ifndef CARD_WRITER
 // =====================================================================================
 // Key mode: rotate the fob's code every 15 s while it's on the reader
@@ -156,26 +198,23 @@ void rotate() {
   led(0, 0, 60);  // back to "fob present"
 }
 
+const char *KEY_READY = "READY key mode: rest the fob on the reader, a new code is written every 15 s";
+
 void setup() {
   Serial.begin(115200);
+  waitForMonitor();
   pixel.begin();
   pixel.setBrightness(60);
-  led(0, 0, 8);
   EEPROM.begin(256);
   SPI.begin();
-  rfid.PCD_Init();
-  delay(50);
-  const byte version = rfid.PCD_ReadRegister(MFRC522::VersionReg);
-  if (version == 0x00 || version == 0xFF) {
-    Serial.println("ERROR:READER RC522 not found, check the wiring (3.3V, SDA→10, RST→9)");
-    led(120, 0, 0);
-  } else {
-    Serial.println("READY key mode: rest the fob on the reader, a new code is written every 15 s");
-  }
-  rfid.PCD_AntennaOff();
+  if (startReader(KEY_READY)) led(0, 0, 8);
 }
 
 void loop() {
+  if (!readerReady) {
+    if (!readerUp(KEY_READY)) return;
+    led(0, 0, 8);
+  }
   static unsigned long lastPoll = 0;
   if (millis() - lastPoll < POLL_MS) return;
   lastPoll = millis();
@@ -233,23 +272,18 @@ void prompt() {
 
 void setup() {
   Serial.begin(115200);
+  waitForMonitor();
   pixel.begin();
   pixel.setBrightness(60);
   SPI.begin();
-  rfid.PCD_Init();
-  delay(50);
-  const byte version = rfid.PCD_ReadRegister(MFRC522::VersionReg);
-  if (version == 0x00 || version == 0xFF) {
-    Serial.println("ERROR:READER RC522 not found, check the wiring (3.3V, SDA→10, RST→9)");
-    led(120, 0, 0);
-  } else {
-    Serial.println("READY card writer");
-  }
-  rfid.PCD_AntennaOff();
-  prompt();
+  if (startReader("READY card writer")) prompt();
 }
 
 void loop() {
+  if (!readerReady) {
+    if (!readerUp("READY card writer")) return;
+    prompt();
+  }
   static unsigned long lastPoll = 0;
   static unsigned long lastPrompt = 0;
   if (millis() - lastPoll < POLL_MS) return;
@@ -303,3 +337,5 @@ void loop() {
   releaseTag();
 }
 #endif
+
+#endif  // WIRING_TEST

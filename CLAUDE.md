@@ -71,7 +71,14 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - Steps: items (fuel $20/$40/$60 or gallons at $3, store items) → Charge → card → PIN pad (dots only) → key → receipt or decline.
   - One `NDEFReader.scan()` is started by the Start tap, with NFC first. Demo buttons appear without NFC. ⚙ setup shows the raw reads and pairs card + key by ID.
 - `terminal.py` → `PumpAuthorizer` (shares the `KeyChecker`) checks: `SC1` card (or `pairings.json` in ID-only mode) → `CARD_PIN` (3 tries) → the key's `ST1` code is fresh, and the key is the card's paired key.
-- `server.py`: `/api/pump/card`, `/api/pump/authorize`, `/api/pump/pair`. Approved sales are POSTed to Nessie in a background thread at "Swamp Gas & Go". That merchant is created once, cached in gitignored `local_state.json`, and added to `/api/config` merchants.
+- `server.py`: `/api/pump/card`, `/api/pump/authorize`, `/api/pump/pair`.
+  - `settle_pump_sale()` runs after the card, PIN and key pass.
+    - It computes the balance from Nessie (`nessie_balance()`), and declines with "Insufficient funds" if the sale is too large.
+    - Otherwise it POSTs the purchase synchronously at "Swamp Gas & Go" (merchant created once and cached in gitignored `local_state.json`).
+    - The result includes `nessie: {purchaseId, balanceAfter}` for the receipt.
+  - Every Nessie call is logged in memory (`log_nessie_call`, with source dashboard / pump / live check). `GET /api/nessie-log` serves it to the dashboard's **Capital One Nessie** panel, which polls every 3 s and refreshes Recent activity when a pump sale is posted.
+  - Nessie's empty-list 404 shows as "empty".
+- `firmware/swamptag_key/src/wiring_test.cpp` (`env:wiring`): bit-bangs SPI over every plausible pin combination and reports which Feather pins the RC522 wires are on. The key and card firmware retry the RC522 every 2 s and print its version register: 0x00 / 0xFF means a wiring problem.
 - `docs/KEY_FORMAT.md`: the ST1 key record, the SC1 card record, the checks, the MIFARE Classic layout.
 - `.claude/skills/redesign-existing-projects/`: UI audit skill (MIT, from Leonxlnx/taste-skill), used for the cleanup pass.
 - `STYLE_GUIDE.md`: tokens and components. Banking-app look: gradient tiles, navy/blue, red only for accents and danger. Geist font, square badges, tabular figures.

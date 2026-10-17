@@ -658,3 +658,18 @@ textarea.input { resize: vertical; min-height: 64px; }
 .receipt-total { border-top: 1px solid var(--border); padding-top: 8px; font-weight: 700; }
 .setup-read { padding: 12px; border-radius: var(--radius-sm); background: var(--surface-2); margin-bottom: 10px; display: grid; gap: 4px; }
 .setup-h { font-size: 1rem; margin-top: 14px; }
+.receipt-nessie { border-top: 1px dashed var(--border); padding-top: 8px; color: var(--green); }
+
+/* Capital One Nessie panel (dashboard): recent API calls */
+.nessie-log { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.nessie-log li { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 0.8rem; }
+.nessie-log .empty { display: block; background: none; color: var(--muted); }
+.nl-method { font-weight: 700; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: var(--link-soft); color: var(--brand); }
+.nl-post { background: var(--green-soft); color: var(--green); }
+.nl-put { background: var(--amber-soft); color: var(--amber); }
+.nl-main { min-width: 0; overflow: hidden; }
+.nl-main .mono { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.76rem; }
+.nl-main small, .nl-meta small { display: block; color: var(--muted); font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nl-meta { text-align: right; }
+.nl-meta .ok { color: var(--green); }
+.nl-meta .bad { color: var(--danger); }
