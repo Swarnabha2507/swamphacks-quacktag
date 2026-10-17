@@ -18,6 +18,7 @@
     .status.warn::before { background: #e5a100; }
     .result { text-align: center; border: 2px dashed #d5dbe3; border-radius: 14px; padding: 28px 12px; transition: background 0.2s, border-color 0.2s; }
     .result.good { background: #e8f7ee; border-color: #1f9d55; }
+    .result.same { background: #fff6e0; border-color: #e5a100; }
     .result .big { font-size: 2.6rem; font-weight: 700; }
     .result .uid { font-family: ui-monospace, Consolas, monospace; font-size: 1.4rem; margin-top: 6px; }
     .log { margin-top: 20px; font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; background: #0b1f3a; color: #cfe1ff; border-radius: 10px; padding: 12px; height: 160px; overflow-y: auto; white-space: pre-wrap; }
@@ -42,6 +43,7 @@
     const $ = (id) => document.getElementById(id);
     const link = new SerialLink();
     let reads = 0;
+    let lastUid = null; // ID of the previous tap, to spot the same key tapped again
 
     function log(text) {
       const time = new Date().toLocaleTimeString();
@@ -65,12 +67,17 @@
       if (line === 'READY') setStatus('Reader ready: tap a tag', 'on');
       else if (line === 'ERROR:READER') setStatus('RC522 not detected: check the wiring (3.3V, D9–D13)', 'warn');
       else if (line.startsWith('TAG:')) {
+        const uid = line.slice(4);
+        const same = uid === lastUid;
         reads += 1;
         setStatus('Reader ready: tap a tag', 'on');
-        $('result').className = 'result good';
-        $('big').textContent = '✓ Read successfully';
-        $('uid').textContent = line.slice(4);
-        $('count').textContent = `${reads} tap${reads === 1 ? '' : 's'} so far`;
+        $('result').className = same ? 'result same' : 'result good';
+        $('big').textContent = same ? '↻ Same key as last time' : '✓ Read successfully';
+        $('uid').textContent = uid;
+        const note = !same && lastUid ? `New key (last one was ${lastUid}) · ` : '';
+        $('count').textContent = `${note}${reads} tap${reads === 1 ? '' : 's'} so far`;
+        if (same) log('same key');
+        lastUid = uid;
         link.send('OK'); // show the check mark on the LED matrix too
         log('→ OK');
       }
