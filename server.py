@@ -40,15 +40,19 @@ TIMEOUT_S = 8
 
 
 def load_env():
-    env_file = ROOT / ".env"
-    if not env_file.exists():
-        return
-    for line in env_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+    """Settings from .env.local (your own keys, never committed) first, then .env (shared).
+    A value that is empty or still the placeholder is skipped, so the other file can supply it."""
+    for env_file in (ROOT / ".env.local", ROOT / ".env"):
+        if not env_file.exists():
             continue
-        name, value = line.split("=", 1)
-        os.environ.setdefault(name.strip(), value.strip().strip('"').strip("'"))
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            name, value = line.split("=", 1)
+            value = value.strip().strip('"').strip("'")
+            if value and value != "paste-your-key-here":
+                os.environ.setdefault(name.strip(), value)
 
 
 load_env()
