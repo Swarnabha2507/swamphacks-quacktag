@@ -151,21 +151,43 @@ bool writeTrailer(MFRC522 &rfid, uint8_t block, const uint8_t keyA[6], uint8_t a
   return writeBlock(rfid, block, t);
 }
 
-// Turns a factory-fresh card into an NDEF card. Only called when key A is still FF..FF.
+// How a sector opens: Fresh = factory key A (FF..FF), Ours = already formatted by us
+// (key B is still FF..FF), Locked = neither.
+enum class Unlock { Fresh, Ours, Locked };
+
+Unlock unlockSector(MFRC522 &rfid, uint8_t trailer) {
+  if (authOrReselect(rfid, MFRC522::PICC_CMD_MF_AUTH_KEY_A, trailer, KEY_FACTORY)) return Unlock::Fresh;
+  if (authOrReselect(rfid, MFRC522::PICC_CMD_MF_AUTH_KEY_B, trailer, KEY_FACTORY)) {
+    // On a factory sector key B is readable and "opens" without granting anything.
+    // Our trailers can be read with key B, so a successful read proves the sector is ours.
+    uint8_t t[18];
+    uint8_t size = sizeof(t);
+    if (rfid.MIFARE_Read(trailer, t, &size) == MFRC522::STATUS_OK) return Unlock::Ours;
+    rfid.PCD_StopCrypto1();
+    select(rfid);
+  }
+  return Unlock::Locked;
+}
+
+// Makes sectors 0-2 an NDEF card. Safe to run again on a card that was lifted off halfway
+// through: fresh sectors get formatted, sectors we already formatted are left alone.
 bool classicFormat(MFRC522 &rfid, String &err) {
-  // Sector 0: MAD
-  if (!authOrReselect(rfid, MFRC522::PICC_CMD_MF_AUTH_KEY_A, 3, KEY_FACTORY)) { err = "sector 0 isn't factory-fresh"; return false; }
+  // Sector 0: MAD (rewritten either way; key A and key B may both write it)
+  const Unlock mad0 = unlockSector(rfid, 3);
+  if (mad0 == Unlock::Locked) { err = "sector 0 is locked with an unknown key"; return false; }
   uint8_t mad[32] = {0};  // block 1 + block 2
   mad[1] = 0x01;          // info byte
   for (uint8_t s = 1; s <= NDEF_SECTORS; s++) { mad[s * 2] = 0x03; mad[s * 2 + 1] = 0xE1; }  // AID 0xE103 = NDEF
   mad[0] = madCrc(mad + 1, 31);
   if (!writeBlock(rfid, 1, mad) || !writeBlock(rfid, 2, mad + 16)) { err = "MAD write failed"; return false; }
-  if (!writeTrailer(rfid, 3, KEY_MAD_A, 0x78, 0x77, 0x88, 0xC1)) { err = "MAD trailer write failed"; return false; }
+  if (mad0 == Unlock::Fresh && !writeTrailer(rfid, 3, KEY_MAD_A, 0x78, 0x77, 0x88, 0xC1)) { err = "MAD trailer write failed"; return false; }
 
   // Sectors 1..2: empty NDEF area + NDEF trailers
   for (uint8_t s = 1; s <= NDEF_SECTORS; s++) {
     const uint8_t first = s * 4;
-    if (!authOrReselect(rfid, MFRC522::PICC_CMD_MF_AUTH_KEY_A, first + 3, KEY_FACTORY)) { err = "sector " + String(s) + " isn't factory-fresh"; return false; }
+    const Unlock u = unlockSector(rfid, first + 3);
+    if (u == Unlock::Locked) { err = "sector " + String(s) + " is locked with an unknown key"; return false; }
+    if (u == Unlock::Ours) continue;
     static const uint8_t ZERO[16] = {0};
     uint8_t empty[16] = {0};
     if (s == 1) { empty[0] = 0x03; empty[1] = 0x00; empty[2] = 0xFE; }  // empty NDEF TLV
@@ -174,6 +196,27 @@ bool classicFormat(MFRC522 &rfid, String &err) {
     }
     if (!writeTrailer(rfid, first + 3, KEY_NDEF_A, 0x7F, 0x07, 0x88, 0x40)) { err = "NDEF trailer write failed"; return false; }
   }
+  return true;
+}
+
+// Writes the TLV into sectors 1..2 with key B. Fails on a card that isn't fully formatted yet.
+bool classicWriteSectors(MFRC522 &rfid, const uint8_t *buf, String &err) {
+  for (uint8_t s = 1; s <= NDEF_SECTORS; s++) {
+    const uint8_t first = s * 4;
+    if (!authOrReselect(rfid, MFRC522::PICC_CMD_MF_AUTH_KEY_B, first + 3, KEY_FACTORY)) {
+      err = "can't unlock sector " + String(s) + " (not a SwampTag-formatted card?)";
+      return false;
+    }
+    for (uint8_t b = 0; b < 3; b++) {
+      if (!writeBlock(rfid, first + b, buf + ((s - 1) * 3 + b) * 16)) {
+        err = "write failed at block " + String(first + b);
+        rfid.PCD_StopCrypto1();
+        select(rfid);
+        return false;
+      }
+    }
+  }
+  rfid.PCD_StopCrypto1();
   return true;
 }
 
@@ -186,24 +229,17 @@ bool classicWrite(MFRC522 &rfid, const String &text, String &err) {
   // Factory-fresh? (key A still FF..FF on sector 1) → format first.
   if (auth(rfid, MFRC522::PICC_CMD_MF_AUTH_KEY_A, 7, KEY_FACTORY)) {
     rfid.PCD_StopCrypto1();
+    select(rfid);
     if (!classicFormat(rfid, err)) return false;
   } else {
     rfid.PCD_StopCrypto1();
     select(rfid);
   }
+  if (classicWriteSectors(rfid, buf, err)) return true;
 
-  for (uint8_t s = 1; s <= NDEF_SECTORS; s++) {
-    const uint8_t first = s * 4;
-    if (!authOrReselect(rfid, MFRC522::PICC_CMD_MF_AUTH_KEY_B, first + 3, KEY_FACTORY)) {
-      err = "can't unlock sector " + String(s) + " (not a SwampTag-formatted card?)";
-      return false;
-    }
-    for (uint8_t b = 0; b < 3; b++) {
-      if (!writeBlock(rfid, first + b, buf + ((s - 1) * 3 + b) * 16)) { err = "write failed at block " + String(first + b); return false; }
-    }
-  }
-  rfid.PCD_StopCrypto1();
-  return true;
+  // A sector is still fresh (an earlier format was cut short): finish formatting, try once more.
+  if (!classicFormat(rfid, err)) return false;
+  return classicWriteSectors(rfid, buf, err);
 }
 
 bool classicRead(MFRC522 &rfid, String &out, String &err) {
@@ -227,12 +263,16 @@ bool classicRead(MFRC522 &rfid, String &out, String &err) {
 
 // ---------- Public API ----------
 
+// A card that was just authenticated ignores the first wake-up (it drops back to idle
+// instead), so try a few times.
 bool select(MFRC522 &rfid) {
-  uint8_t atqa[2];
-  uint8_t size = sizeof(atqa);
-  const MFRC522::StatusCode s = rfid.PICC_WakeupA(atqa, &size);
-  if (s != MFRC522::STATUS_OK && s != MFRC522::STATUS_COLLISION) return false;
-  return rfid.PICC_ReadCardSerial();
+  for (uint8_t attempt = 0; attempt < 3; attempt++) {
+    uint8_t atqa[2];
+    uint8_t size = sizeof(atqa);
+    const MFRC522::StatusCode s = rfid.PICC_WakeupA(atqa, &size);
+    if ((s == MFRC522::STATUS_OK || s == MFRC522::STATUS_COLLISION) && rfid.PICC_ReadCardSerial()) return true;
+  }
+  return false;
 }
 
 String uidHex(const MFRC522 &rfid) {
