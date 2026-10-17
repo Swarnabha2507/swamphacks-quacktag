@@ -1,0 +1,18 @@
+{
+  // Open this file in VS Code (File → Open Workspace from File…) so the PlatformIO
+  // extension finds the key-device firmware: it only looks for platformio.ini at the
+  // top of a workspace folder.
+  "folders": [
+    { "name": "SwampTag", "path": "." },
+    { "name": "Key device firmware (PlatformIO)", "path": "firmware/swamptag_key" }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.pio": true
+    },
+    "platformio-ide.autoOpenPlatformIOIniFile": false
+  },
+  "extensions": {
+    "recommendations": ["platformio.platformio-ide"]
+  }
+}

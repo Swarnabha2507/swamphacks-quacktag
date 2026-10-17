@@ -62,7 +62,10 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - `src/ndef_tag.cpp`: NDEF Text read/write on NTAG/Ultralight and **MIFARE Classic 1K** (NFC Forum MAD format; key B stays FF…FF; MAD CRC-8 checked against the NFC Forum example).
   - `include/secrets.h` is gitignored and holds the same `KEY_SECRET` as `.env`.
   - **Build:** `%USERPROFILE%\.platformio\penv\Scripts\pio.exe run -d firmware/swamptag_key -e key -e card`.
-  - **Flash:** picotool can't reach the board without a Zadig driver. Instead, put the board in BOOTSEL (a failed upload does that, or BOOT + RESET), then copy `.pio/build/<env>/firmware.uf2` to the **RPI-RP2** drive (it was D:).
+  - **Flash:** `pio run -d firmware/swamptag_key -e <env> -t upload` works with **no Zadig driver**.
+    - `upload_protocol = custom` runs `tools/uf2_upload.py`, which does a 1200-baud touch on the Feather's port (USB IDs 239A/2E8A), waits for the **RPI-RP2** drive (it was D:) and copies `firmware.uf2`.
+    - **If the port is "busy" or "Access denied":** a serial logger or monitor still holds it. My old `scratchpad/serial_log.py` processes did this twice; stop them first.
+  - **VS Code:** open `SwampTag.code-workspace`. Its second folder is `firmware/swamptag_key`, so the PlatformIO extension finds `platformio.ini` (it only checks workspace-folder roots). PlatformIO Core is at `~/.platformio` and the extension uses it.
   - The Feather's serial port moves between COM4 and COM5 after reflashing.
 - `website/pump.html` + `js/pump.js`: the **gas-station checkout** on the phone.
   - Steps: items (fuel $20/$40/$60 or gallons at $3, store items) → Charge → card → PIN pad (dots only) → key → receipt or decline.

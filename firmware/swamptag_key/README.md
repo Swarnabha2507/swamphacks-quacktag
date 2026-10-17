@@ -26,22 +26,20 @@ Same as Diego's port:
 ## Secret
 `include/secrets.h` (gitignored) holds `KEY_SECRET`, and it **must equal `KEY_SECRET` in the project's `.env`**, or the pump says "Key code doesn't match". If `secrets.h` is missing, the build uses `secrets.example.h` and warns you. The card's last 4 digits and holder name are set in the same file.
 
-## Build and flash
-From this folder, with the PlatformIO CLI (`%USERPROFILE%\.platformio\penv\Scripts\pio.exe`) or the PlatformIO sidebar in VS Code:
+## Build and flash in VS Code
+1. **Open the workspace:** File → **Open Workspace from File…** → `SwampTag.code-workspace` (in the project root). PlatformIO only finds projects at the top of a workspace folder, and this file adds `firmware/swamptag_key` as one.
+2. **Pick the program:** click the environment name in the blue status bar (it says `env:key`) and choose **`env:key`** (key device) or **`env:card`** (card writer).
+3. **Build and upload:** use the status bar's **✓ Build** and **→ Upload** buttons.
+   - Upload needs **no extra driver**. `tools/uf2_upload.py` reboots the Feather into its bootloader, waits for the **RPI-RP2** drive and copies `firmware.uf2` onto it.
+   - If no Feather is found, hold **BOOT**, tap **RESET**, release BOOT, and press Upload again.
+4. **Watch it:** click the **🔌 Serial Monitor** button (115200 baud). Close the monitor before uploading, since only one program can use the port.
 
+**Command line:** the same from this folder, with `%USERPROFILE%\.platformio\penv\Scripts\pio.exe`:
 ```
-pio run -e card            # build the card writer
-pio run -e key             # build the key device
+pio run -e card -t upload   # card writer
+pio run -e key -t upload    # key device
+pio device monitor          # watch it
 ```
-
-**Flashing without extra drivers:**
-1. Hold **BOOT**, tap **RESET**, then release BOOT. A drive called **RPI-RP2** appears.
-2. Copy `.pio/build/card/firmware.uf2` (or `.pio/build/key/firmware.uf2`) onto it.
-3. The board reboots into the new program.
-
-`pio run -t upload` also works once the RP2040 WinUSB driver is installed with Zadig. Without it, picotool says "unable to connect", so use the copy method above.
-
-**Watch it work:** `pio device monitor` (115200 baud).
 
 ## What you'll see
 
