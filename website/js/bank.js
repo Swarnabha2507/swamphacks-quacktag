@@ -78,7 +78,9 @@ const NessieBank = {
       customerId ? this.api(`customers/${customerId}`).catch(() => null) : null,
     ]);
 
-    const times = Store.state.liveTimes || {};
+    // Exact times: payments made here, plus pump sales (the server remembers when those happened)
+    const saleTimes = await fetch('/api/sale-times').then((r) => r.json()).catch(() => ({}));
+    const times = { ...saleTimes, ...(Store.state.liveTimes || {}) };
     const merchantById = Object.fromEntries(merchants.map((m) => [m.id, m]));
     const contactByName = Object.fromEntries(contacts.map((c) => [c.name, c]));
     const rows = [];
