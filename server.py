@@ -19,11 +19,13 @@ import time
 from collections import deque
 import urllib.error
 import urllib.request
-from datetime import date
+from datetime import date, datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
+import scam_review   # Gemini scam review with model switch + offline rules (standard library only)
+import transcriber   # Whisper speech-to-text; only available when run from .venv
 from terminal import KeyChecker, PumpAuthorizer, TerminalRelay
 
 ROOT = Path(__file__).resolve().parent
@@ -32,6 +34,8 @@ IDS_FILE = ROOT / "nessie_ids.json"
 COUNTERS_FILE = ROOT / "key_counters.json"
 PAIRINGS_FILE = ROOT / "pairings.json"       # card ↔ key pairs, serial-number mode only
 LOCAL_STATE_FILE = ROOT / "local_state.json"  # e.g. the gas station merchant ID in Nessie
+SCAM_LOG_FILE = ROOT / "scam_reviews.txt"     # every voice transcription, scam review and representative request
+AUDIO_TYPES = {"audio/webm": ".webm", "audio/ogg": ".ogg", "audio/wav": ".wav", "audio/mp4": ".m4a", "audio/mpeg": ".mp3"}
 TIMEOUT_S = 8
 
 
@@ -239,7 +243,17 @@ def build_config():
     auth0 = auth0_config()
     if auth0:
         config["auth0"] = auth0
+    config["voice"] = transcriber.available()      # the page shows 🎤 only when Whisper can run
+    config["scamAI"] = bool(scam_review.API_KEY)   # False = scam reviews use the offline rules
     return config
+
+
+def log_scam(kind, details):
+    """Append one entry to scam_reviews.txt so you can see what happened (kept on this computer only)."""
+    lines = [f"=== {kind} · {datetime.now():%Y-%m-%d %H:%M:%S} ==="]
+    lines += [f"{key}: {value}" for key, value in details.items()]
+    with SCAM_LOG_FILE.open("a", encoding="utf-8") as file:
+        file.write("\n".join(lines) + "\n\n")
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -259,6 +273,57 @@ class Handler(SimpleHTTPRequestHandler):
         """Returns the parsed JSON body (None if empty). Raises ValueError for bad JSON."""
         length = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(length)) if length else None
+
+    def handle_voice(self, method, parts):
+        """Voice scam check for payments over the tap limit (scam_review.py + transcriber.py)."""
+        if method != "POST":
+            return self.send_json(405, {"error": "POST only"})
+
+        if parts.path == "/api/voice/transcribe":           # body = the browser's audio recording
+            if not transcriber.available():
+                return self.send_json(503, {"error": "Voice isn't set up: run the server with .venv\\Scripts\\python.exe"})
+            data = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+            if not data:
+                return self.send_json(400, {"error": "The recording was empty"})
+            suffix = AUDIO_TYPES.get(self.headers.get("Content-Type", "").split(";")[0].strip(), ".webm")
+            try:
+                text, seconds = transcriber.transcribe_bytes(data, suffix)
+            except Exception as err:  # a broken recording must not stop the server
+                print(f"Voice: transcription failed: {err}")
+                return self.send_json(500, {"error": f"Couldn't understand the recording ({type(err).__name__})"})
+            log_scam("voice transcription", {"Audio": f"{seconds:.1f}s", "Text": text or "(nothing heard)"})
+            print(f"Voice: heard {seconds:.1f}s: {text!r}")
+            return self.send_json(200, {"text": text, "seconds": round(seconds, 1)})
+
+        try:
+            body = self.read_json_body() or {}
+        except ValueError:
+            return self.send_json(400, {"error": "Body must be JSON"})
+
+        if parts.path == "/api/voice/review":
+            try:
+                amount = int(body.get("amount", 0))
+            except (TypeError, ValueError):
+                amount = 0
+            explanation = str(body.get("explanation", ""))[:500]
+            result = scam_review.review(amount, explanation, str(body.get("reasonLabel", ""))[:200],
+                                        "purchase" if body.get("kind") == "purchase" else "transfer",
+                                        str(body.get("payee", ""))[:80])
+            log_scam("scam review", {"Payment": f"{body.get('kind')} ${amount} · {body.get('payee', '')}",
+                                     "Reason": body.get("reasonLabel") or "-", "Said": explanation or "-",
+                                     "Answered by": result["answeredBy"], "Risk": result["risk"],
+                                     "Scam type": result["scamType"], "Note": result["note"] or "-"})
+            print(f"Scam review: {result['answeredBy']}: risk {result['risk']} ({result['scamType']})")
+            return self.send_json(200, result)
+
+        if parts.path == "/api/voice/representative":    # demo only: nothing is called
+            log_scam("representative request (demo only, no call made)",
+                     {"Why": str(body.get("reason", "-"))[:200], "Payment": str(body.get("payment", "-"))[:120]})
+            print(f"Representative requested ({body.get('reason')}). Demo only: no call made.")
+            return self.send_json(200, {"connected": False,
+                                        "message": "Customer service isn't connected in this demo. No call was made."})
+
+        return self.send_json(404, {"error": "Unknown voice route"})
 
     def handle_pump(self, method, parts):
         """Gas-station checkout on the phone (website/pump.html): card, PIN, key."""
@@ -338,6 +403,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.handle_terminal(method, parts)
         if parts.path.startswith("/api/pump/"):
             return self.handle_pump(method, parts)
+        if parts.path.startswith("/api/voice/"):
+            return self.handle_voice(method, parts)
         if not parts.path.startswith("/api/nessie/"):
             return self.send_json(404, {"error": "Unknown API route"})
         if not API_KEY:
@@ -383,6 +450,13 @@ def main():
     print(f"Phone terminal: http://localhost:{port}/terminal.html   Gas pump: http://localhost:{port}/pump.html")
     print(f"  (on the phone: adb reverse tcp:{port} tcp:{port}, or edge://inspect port forwarding)")
     print("Card PIN:", "set in .env" if os.environ.get("CARD_PIN") else "1234 (default)")
+    # Plain characters only: Windows terminals may not be able to print arrows or emoji.
+    print("Scam review:", f"Gemini ({' -> '.join(scam_review.MODELS_TO_TRY)}), offline rules as backup"
+          if scam_review.API_KEY else "offline rules only (add GEMINI_API_KEY to .env.local)")
+    print("Voice:", "on, loading Whisper in the background" if transcriber.available()
+          else "off (run with .venv\\Scripts\\python.exe to turn it on)")
+    if transcriber.available():
+        threading.Thread(target=transcriber.warm_up, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

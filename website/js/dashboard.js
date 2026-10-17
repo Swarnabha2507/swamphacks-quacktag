@@ -259,6 +259,7 @@ function closeModal() {
   $('#modal-root').innerHTML = '';
   modalLocked = false;
   stopSpeaking();
+  stopRecording();   // closing the voice check mid-recording turns the microphone off
   // Closing a "tap your key" screen early cancels it.
   if (pending) {
     pending = null;
@@ -401,8 +402,18 @@ function startPayment(payment) {
     return;
   }
   const risk = assessRisk(payment, snap.history, snap.home, { alwaysTap: state.alwaysTap, tapLimit: state.tapLimit });
+  if (risk.tapRequired && needsVoiceCheck(payment)) {
+    voiceCheckFlow(payment);   // over the tap limit: ask why (voice or typing) before the key tap
+    return;
+  }
   if (risk.tapRequired) requestApproval(payment, risk);
   else approveTrusted(payment);
+}
+
+// Over the tap limit → ask why first. Not for the "Simulate fraud" thief, bills, or a payment already checked.
+function needsVoiceCheck(payment) {
+  return state.scamCheck && !payment.voiceChecked && !payment.fraud && payment.kind !== 'bill'
+    && payment.amount > state.tapLimit;
 }
 
 async function approveTrusted(payment) {
@@ -543,47 +554,195 @@ function sendFlow() {
     const c = getContact();
     const note = modal.querySelector('#send-note').value.trim() || 'Sent with SwampTag';
     const payment = { kind: 'transfer', name: c.name, initials: c.initials, place: 'Peer-to-peer', note, contact: c, amount };
-    if (state.scamCheck && needsScamCheck(amount)) scamCheckFlow(payment);
+    // $200+ (Scam check) or over the tap limit: one voice check, then the normal payment flow.
+    if (state.scamCheck && (needsScamCheck(amount) || amount > state.tapLimit)) voiceCheckFlow(payment);
     else startPayment(payment);
   });
 }
 
-// Large transfers: ask why first. Red-flag answers get a warning and alert the trusted contact.
-function scamCheckFlow(payment) {
+// ---------- Voice scam check (server.py → transcriber.py + scam_review.py) ----------
+
+let voiceAvailable = false;   // /api/config says whether Whisper can run (server started from .venv)
+loadConfig().then((config) => { voiceAvailable = Boolean(config.voice); });
+
+// Over the tap limit (or a $200+ transfer): ask why, by voice or typing, then review it with Gemini.
+// Red flags get a warning and alert the trusted contact; otherwise it continues to the key tap.
+function voiceCheckFlow(payment) {
+  const purchase = payment.kind === 'purchase';
+  const verb = purchase ? 'pay' : 'send';
   const modal = openModal(`
-    ${modalHead(`Before you send ${money.format(payment.amount)}`)}
-    <p class="modal-text">For larger transfers, SwampTag asks why. Scammers often rush people, especially older adults, into sending money.</p>
+    ${modalHead(`Before you ${verb} ${money.format(payment.amount)}`)}
+    <div class="rep-row">
+      <button type="button" class="btn btn-ghost btn-sm" id="rep-now">📞 Talk to a representative</button>
+      <span class="rep-status" id="rep-status" aria-live="polite"></span>
+    </div>
+    <p class="modal-text">${purchase
+      ? `This is over your $${state.tapLimit} tap limit, so SwampTag asks what it's for. Scammers often tell people what to buy, like gift cards.`
+      : 'For larger transfers, SwampTag asks why. Scammers often rush people, especially older adults, into sending money.'}</p>
     <form id="why-form" novalidate>
+      ${purchase ? '' : `
       <fieldset class="reason-list">
         <legend>Why are you sending this money to ${escapeHtml(payment.name)}?</legend>
         ${TRANSFER_REASONS.map((r) => `
           <label class="reason"><input type="radio" name="why" value="${r.id}"><span>${escapeHtml(r.label)}</span></label>`).join('')}
-      </fieldset>
+      </fieldset>`}
       <div class="field">
-        <label for="why-text">Tell us a little more (optional)</label>
-        <textarea class="input" id="why-text" maxlength="200" placeholder="e.g. My grandson called and needs bail money"></textarea>
+        <label for="why-text">${purchase ? `What are you buying at ${escapeHtml(payment.name)}, and why?` : 'Tell us a little more'}</label>
+        <textarea class="input" id="why-text" maxlength="300" placeholder="${purchase ? 'e.g. Textbooks for my class' : 'e.g. My grandson called and needs bail money'}"></textarea>
+        ${voiceAvailable ? `
+        <div class="mic-row">
+          <button type="button" class="btn btn-outline btn-sm" id="mic-btn">🎤 Say it instead</button>
+          <span class="mic-status" id="mic-status" aria-live="polite"></span>
+        </div>` : ''}
       </div>
-      <p class="form-error hidden" id="why-error" role="alert">Choose the reason that fits best.</p>
+      <p class="form-error hidden" id="why-error" role="alert">${purchase ? 'Say or type what it’s for.' : 'Choose a reason, or say or type why.'}</p>
       <button class="btn btn-primary btn-block" type="submit">Continue</button>
     </form>`);
+
+  modal.querySelector('#rep-now').addEventListener('click', () =>
+    callRepresentative(modal.querySelector('#rep-status'), 'Asked for a representative before starting', payment));
+  if (voiceAvailable) wireMicButton(modal);
 
   modal.querySelector('#why-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const choice = modal.querySelector('input[name="why"]:checked');
-    if (!choice) {
+    const explanation = modal.querySelector('#why-text').value.trim();
+    if (!choice && !explanation) {
       modal.querySelector('#why-error').classList.remove('hidden');
       return;
     }
-    const explanation = modal.querySelector('#why-text').value;
+    stopRecording();
+    const reason = choice ? TRANSFER_REASONS.find((r) => r.id === choice.value) : null;
     showResult('busy', 'Reviewing your answer…', 'Checking it against common scams that target older adults.');
-    const review = await reviewTransfer(choice.value, explanation, payment.amount);
+    const review = await reviewWithServer(payment, reason, explanation);
+    const checked = { ...payment, voiceChecked: true };
     if (!review.flag) {
+      if (review.offline) return offlineAllClear(checked, review);
       closeModal();
-      toast('Scam review: no red flags found.');
-      startPayment(payment);
+      toast(`Scam review (${review.source}): no red flags found.`);
+      startPayment(checked);
       return;
     }
-    scamWarning(payment, review);
+    scamWarning(checked, review);
+  });
+}
+
+// Asks server.py (/api/voice/review → scam_review.py). If the server can't be reached at all,
+// falls back to the simulated review in scamcheck.js. Returns the shape scamWarning() uses.
+async function reviewWithServer(payment, reason, explanation) {
+  try {
+    const res = await fetch('/api/voice/review', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: payment.amount, kind: payment.kind, payee: payment.name,
+                             reasonLabel: reason ? reason.label : '', explanation }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const r = await res.json();
+    const offline = r.answeredBy === 'offline rules';
+    if (r.risk === 'low') return { flag: null, offline, source: offline ? 'offline review' : 'Gemini', note: r.note };
+    const scamType = r.scamType && r.scamType !== 'none' ? r.scamType : 'possible scam';
+    return {
+      flag: scamType.charAt(0).toUpperCase() + scamType.slice(1),
+      warning: r.spokenWarning,
+      findings: r.reasons.length ? r.reasons : ['This matches a common scam pattern.'],
+      confidence: r.risk === 'high' ? 92 : 75,
+      offline,
+      source: offline ? 'offline review' : `Gemini · ${r.answeredBy}`,
+      note: r.note,
+    };
+  } catch (err) {
+    console.warn('Scam review server unavailable, using the simulated review', err);
+    const local = await reviewTransfer(reason ? reason.id : null, explanation, payment.amount, { delayMs: 0 });
+    return { ...local, offline: true, source: 'offline review', note: 'server unreachable' };
+  }
+}
+
+// The AI couldn't review it, but the offline rules found nothing: say so honestly and offer a person.
+function offlineAllClear(payment, review) {
+  const modal = openModal(`
+    <div class="approval">
+      <div class="result-icon busy">?</div>
+      <div class="result-title">Basic check only</div>
+      <p class="result-body">The AI scam review isn't available right now, so only a basic offline check ran. It found no red flags.</p>
+      <div class="rep-row rep-center">
+        <button type="button" class="btn btn-outline btn-block" id="rep-offline">📞 Talk to a representative first</button>
+        <span class="rep-status" id="rep-status" aria-live="polite"></span>
+      </div>
+      <button class="btn btn-primary btn-block stack-gap" id="offline-continue">Continue to your key</button>
+    </div>`);
+  modal.querySelector('#rep-offline').addEventListener('click', () =>
+    callRepresentative(modal.querySelector('#rep-status'), `AI review unavailable (${review.note || 'offline'})`, payment));
+  modal.querySelector('#offline-continue').addEventListener('click', () => {
+    closeModal();
+    startPayment(payment);
+  });
+}
+
+// Customer service is DEMO ONLY: it pretends to dial, logs the request on the server, and says no call was made.
+async function callRepresentative(statusEl, reason, payment) {
+  statusEl.textContent = 'Connecting you to customer service…';
+  try {
+    await fetch('/api/voice/representative', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, payment: `${payment.kind} ${money.format(payment.amount)} · ${payment.name}` }),
+    });
+  } catch { /* the demo message below still shows */ }
+  await new Promise((resolve) => setTimeout(resolve, 2000));   // pretend to dial
+  statusEl.textContent = "📵 Customer service isn't connected in this demo. No call was made.";
+  speak("Customer service isn't available in this demo. In the real app, you would be connected to a person here.");
+}
+
+// ---------- 🎤 Recording (MediaRecorder → /api/voice/transcribe → Whisper) ----------
+
+let recorder = null;
+
+function stopRecording() {
+  if (recorder && recorder.state === 'recording') recorder.stop();
+}
+
+function wireMicButton(modal) {
+  const btn = modal.querySelector('#mic-btn');
+  const status = modal.querySelector('#mic-status');
+  const box = modal.querySelector('#why-text');
+  btn.addEventListener('click', async () => {
+    if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      status.textContent = `Microphone not available (${err.name}). You can type instead.`;
+      return;
+    }
+    const chunks = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());   // turn the microphone off
+      btn.textContent = '🎤 Say it instead';
+      btn.classList.remove('recording');
+      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+      status.textContent = 'Listening to your recording…';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/voice/transcribe', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        if (!data.text) {
+          status.textContent = "I didn't catch that. Try again, or type instead.";
+        } else {
+          box.value = box.value.trim() ? `${box.value.trim()} ${data.text}` : data.text;
+          status.textContent = 'Got it. Check the text, then press Continue.';
+        }
+      } catch (err) {
+        status.textContent = `Couldn't understand the recording (${err.message}). You can type instead.`;
+      } finally {
+        btn.disabled = false;
+      }
+    };
+    recorder.start();
+    btn.textContent = '⏹ Stop recording';
+    btn.classList.add('recording');
+    status.textContent = 'Recording… speak now, then press Stop.';
   });
 }
 
@@ -607,23 +766,27 @@ function scamWarning(payment, review) {
     `${review.flag}. We let ${TRUSTED_CONTACT.name}, your ${TRUSTED_CONTACT.relation}, know.`);
   renderShield();
 
-  const spoken = `Stop. This looks like a scam. ${review.warning} If you still want to send this money, please call SwampTag fraud support first, at ${FRAUD_LINE.spoken}.`;
+  const purchase = payment.kind === 'purchase';
+  const thing = purchase ? 'purchase' : 'transfer';
+  const spoken = `Stop. This looks like a scam. ${review.warning} If you still want to ${purchase ? 'pay' : 'send this money'}, please call SwampTag fraud support first, at ${FRAUD_LINE.spoken}.`;
   const modal = openModal(`
     <div class="scam-warning">
       <div class="result-icon bad">!</div>
       <h2>Stop. This looks like a scam.</h2>
       <div class="review-box">
-        <span class="risk-label">Scam review · ${review.confidence}% match</span>
+        <span class="risk-label">${escapeHtml(review.offline ? 'Offline scam review (AI unavailable)' : review.source ? `Scam review · ${review.source}` : 'Scam review')} · ${review.confidence}% match</span>
         <ul>${review.findings.map((f) => `<li>${escapeHtml(f)}</li>`).join('')}</ul>
       </div>
       <p class="modal-text">${escapeHtml(review.warning)}</p>
       <div class="call-box">
-        <strong>Still want to send ${money.format(payment.amount)}?</strong>
-        <span>Call SwampTag fraud support first. We'll talk it through with you and give you a code.</span>
-        <a class="call-number" href="tel:${FRAUD_LINE.tel}">${FRAUD_LINE.label}</a>
+        <strong>Still want to ${purchase ? 'pay' : 'send'} ${money.format(payment.amount)}?</strong>
+        <span>Talk to SwampTag fraud support first. We'll talk it through with you and give you a code.</span>
+        <span class="call-number">${FRAUD_LINE.label}</span>
+        <button type="button" class="btn btn-outline btn-sm" id="rep-call">📞 Talk to a representative</button>
+        <span class="rep-status" id="rep-status" aria-live="polite"></span>
       </div>
-      <p class="notice">We let <strong>${escapeHtml(TRUSTED_CONTACT.name)}</strong>, your ${escapeHtml(TRUSTED_CONTACT.relation)}, know about this transfer.</p>
-      <button class="btn btn-navy btn-block stack-gap" id="scam-cancel">Cancel this transfer</button>
+      <p class="notice">We let <strong>${escapeHtml(TRUSTED_CONTACT.name)}</strong>, your ${escapeHtml(TRUSTED_CONTACT.relation)}, know about this ${thing}.</p>
+      <button class="btn btn-navy btn-block stack-gap" id="scam-cancel">Cancel this ${thing}</button>
       <button class="btn btn-ghost btn-block stack-gap" id="scam-speak">🔊 Read this to me again</button>
       <form class="verify-form" id="verify-form" novalidate>
         <label for="verify-code">Code from your call</label>
@@ -634,18 +797,22 @@ function scamWarning(payment, review) {
         <p class="form-error hidden" id="verify-error" role="alert">That code doesn't match. Call ${FRAUD_LINE.label} to get one.</p>
         ${state.demoMode ? `<p class="panel-note">Demo code: ${DEMO_VERIFY_CODE}</p>` : ''}
       </form>
-      <p class="fine-print">Simulated scam review for the demo.</p>
+      <p class="fine-print">${review.offline
+        ? 'The AI review was unavailable, so a basic offline check flagged this. Customer service is a demo: no call is made.'
+        : 'Reviewed by Gemini. Customer service is a demo: no call is made.'}</p>
     </div>`, { locked: true });
 
   speak(spoken);
   modal.querySelector('#scam-speak').addEventListener('click', () => speak(spoken));
+  modal.querySelector('#rep-call').addEventListener('click', () =>
+    callRepresentative(modal.querySelector('#rep-status'), `Scam warning: ${review.flag}`, payment));
 
   modal.querySelector('#scam-cancel').addEventListener('click', () => {
     stopSpeaking();
     Store.addLocalRow({ name: payment.name, initials: payment.initials, sub: `Stopped by Scam check · ${review.flag}`, amount: -payment.amount, status: 'blocked' });
     Store.addAlert('good', `You stopped ${money.format(payment.amount)} from leaving`, 'Good call. When in doubt, talk to someone you trust first.');
     renderAll(true);
-    showResult('good', 'Transfer cancelled', `Your ${money.format(payment.amount)} stayed in your account.`);
+    showResult('good', `${purchase ? 'Purchase' : 'Transfer'} cancelled`, `Your ${money.format(payment.amount)} stayed in your account.`);
   });
 
   modal.querySelector('#verify-form').addEventListener('submit', (e) => {
@@ -657,7 +824,7 @@ function scamWarning(payment, review) {
       return;
     }
     closeModal();
-    Store.addAlert('info', 'Fraud support verified a flagged transfer', `${money.format(payment.amount)} to ${payment.name}. Your key is still required.`);
+    Store.addAlert('info', `Fraud support verified a flagged ${thing}`, `${money.format(payment.amount)} to ${payment.name}. Your key is still required.`);
     startPayment({ ...payment, scamFlag: review.flag });
   });
 }

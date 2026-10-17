@@ -478,3 +478,47 @@ Only the pipeline code (`learn/`, `scam_review.py`, `transcriber.py`) is shared 
 <details><summary>Answer</summary>
 They contain your real voice and what you said: personal data that doesn't belong in a shared repo. They're listed in `.git/info/exclude` (a local-only ignore list). `sample.wav` is a computer voice, so it's fine to share for tests.
 </details>
+
+---
+
+## 15. The voice check on the website
+
+**15.1** When does the website ask "why?" before a payment?
+<details><summary>Answer</summary>
+When a purchase or transfer is **over your tap limit** (and transfers of $200 or more, as before). Not for the "Simulate fraud" thief, not for bills, and never twice for the same payment (`voiceChecked`).
+</details>
+
+**15.2** Which function decides that, and where is it called?
+<details><summary>Answer</summary>
+`needsVoiceCheck(payment)` in `dashboard.js`, called inside `startPayment()` right after `assessRisk()`. If it's true, `voiceCheckFlow()` runs before the key-tap screen.
+</details>
+
+**15.3** What does the 🎤 button actually do?
+<details><summary>Answer</summary>
+It records with `MediaRecorder`, sends the audio to `/api/voice/transcribe` (server.py → `transcriber.py` → Whisper), and puts the text in the box so the person can check it before pressing Continue.
+</details>
+
+**15.4** After Continue, which route reviews the answer, and what happens for each risk?
+<details><summary>Answer</summary>
+`/api/voice/review` (server.py → `scam_review.review()`). Low: straight to the key tap. Medium/high: `scamWarning()`, which reads the warning aloud, alerts the trusted contact, and needs the fraud-support code before the key tap.
+</details>
+
+**15.5** What does the page do if the review server can't be reached at all?
+<details><summary>Answer</summary>
+It falls back to the simulated `reviewTransfer()` in `scamcheck.js`, labels it "Offline scam review (AI unavailable)", and offers a representative. If nothing is flagged, it shows "Basic check only" instead of pretending the AI checked it.
+</details>
+
+**15.6** Why does the 🎤 button sometimes not appear?
+<details><summary>Answer</summary>
+The server was started with plain `py`, which has no faster-whisper. `/api/config` then says `voice: false` and the page hides the button; typing still works. Start it with `.venv\Scripts\python.exe server.py` for voice.
+</details>
+
+**15.7** Why did the server crash at first with `UnicodeEncodeError`, and what was the fix?
+<details><summary>Answer</summary>
+It printed an arrow (→) and an emoji, which the Windows terminal's code page can't show. The fix was printing plain characters only (`->`), like the rest of server.py.
+</details>
+
+**15.8** Why were the website changes committed but not pushed?
+<details><summary>Answer</summary>
+Your rule: only the Whisper/Gemini pipeline goes to GitHub (`voice-pipeline`). The website changes live on the local `voice-website` branch, which has no upstream, so a plain `git push` can't send it by accident.
+</details>

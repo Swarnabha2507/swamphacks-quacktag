@@ -508,6 +508,14 @@ textarea.input { resize: vertical; min-height: 64px; }
 .review-box li + li { margin-top: 4px; }
 .call-box { display: grid; gap: 4px; margin: 14px 0; padding: 14px; border: 1.5px solid var(--link); border-radius: var(--radius-sm); background: var(--link-soft); font-size: 0.92rem; }
 .call-number { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.call-box .btn { justify-self: start; margin-top: 4px; }
+
+/* Voice check: 🎤 recording and the demo-only representative button */
+.mic-row, .rep-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.rep-row { margin: 0 0 10px; }
+.rep-row.rep-center { justify-content: center; margin-top: 12px; }
+.mic-status, .rep-status { color: var(--muted); font-size: 0.85rem; }
+.btn.recording { border-color: var(--danger); color: var(--danger); }
 .verify-form { margin-top: 10px; padding-top: 14px; border-top: 1px dashed var(--border); }
 .verify-form label { display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 6px; }
 .verify-row { display: flex; gap: 8px; }
