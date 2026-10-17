@@ -557,3 +557,38 @@ textarea.input { resize: vertical; min-height: 64px; }
   .tab-bar a[aria-current="page"] { color: var(--link); }
   .tab-bar svg { width: 22px; height: 22px; }
 }
+
+/* ---------- Phone terminal (terminal.html, runs on the Pixel in the case) ---------- */
+
+.term-body { background: #fff; min-height: 100dvh; overflow: hidden; }
+.term-body.flipped .term { transform: rotate(180deg); } /* phone sits upside down in the case */
+.term { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; padding: 18px 20px 14px; text-align: center; }
+.term-top { display: flex; align-items: center; justify-content: space-between; }
+.term-top .logo { font-size: 1.05rem; }
+.term-top .logo svg { width: 26px; height: 26px; }
+.term-flip { background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); width: 36px; height: 36px; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
+.term-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px 0; }
+.term-screen .tap-ripple { margin: 18px auto 10px; }
+.term-merchant { color: var(--muted); font-size: 1.05rem; }
+.term-amount { font-size: clamp(2.8rem, 15vw, 4.2rem); font-weight: 400; letter-spacing: -0.04em; color: var(--brand-dark); font-variant-numeric: tabular-nums; line-height: 1.05; }
+.term-reasons { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+.term-prompt { font-size: 1.25rem; font-weight: 600; color: var(--brand-dark); }
+.term-arrow { font-size: 1.6rem; color: var(--link); animation: nudge 1.4s var(--ease) infinite; }
+@keyframes nudge { 50% { transform: translateY(8px); } }
+.term-title { font-size: 1.7rem; font-weight: 600; letter-spacing: -0.03em; color: var(--brand-dark); }
+.term-title.good { color: var(--green); }
+.term-title.bad { color: var(--danger); }
+.term-sub { color: var(--muted); max-width: 30ch; }
+.term-result { width: 120px; height: 120px; border-radius: 36px; display: grid; place-items: center; font-size: 3.6rem; color: #fff; font-weight: 700; margin-bottom: 14px; animation: pop 0.3s var(--ease); }
+.term-result.good { background: var(--green); box-shadow: 0 0 0 14px var(--green-soft); }
+.term-result.bad { background: var(--danger); box-shadow: 0 0 0 14px var(--danger-soft); }
+.term-idle .tap-ripple .core { background: var(--surface-3); box-shadow: none; }
+.term-idle .tap-ripple::before, .term-idle .tap-ripple::after { border-color: var(--surface-3); }
+.term-notice { margin-top: 14px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--amber-soft); color: var(--amber); font-size: 0.9rem; }
+.term-foot { display: grid; gap: 10px; justify-items: center; }
+.term-foot .badge { white-space: normal; max-width: 100%; text-align: left; }
+.term-demo { display: flex; gap: 8px; }
+.term-start { position: fixed; inset: 0; z-index: var(--z-modal); background: #fff; display: grid; place-items: center; padding: 24px; text-align: center; }
+.term-start h1 { font-size: 1.6rem; color: var(--brand-dark); margin-bottom: 8px; }
+.term-start p { margin-bottom: 22px; }
+.setup-steps { margin: 0 0 20px; padding-left: 20px; display: grid; gap: 10px; font-size: 0.92rem; }

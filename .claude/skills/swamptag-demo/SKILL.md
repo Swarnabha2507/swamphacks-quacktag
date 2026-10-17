@@ -1,62 +1,63 @@
 ---
 name: swamptag-demo
-description: Flash the SwampTag Arduino sketch, serve the SwampTag website, run the end-to-end demo checklist, and troubleshoot RFID/Web Serial problems. Use when asked to upload, test, run, demo, or debug the SwampTag hardware or site.
+description: Run the SwampTag demo end to end. Serve the site, connect the Pixel phone terminal (Web NFC over USB port forwarding), check key codes, run the demo checklist, and troubleshoot the phone terminal, Nessie, Auth0 and the old Arduino reader. Use when asked to run, test, demo or debug SwampTag.
 ---
 
 # SwampTag demo runbook
 
 ## Paths
-- CLI: `$cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"`
-- FQBN: `arduino:renesas_uno:unor4wifi`
-- Sketch: `arduino/SwampTag`
-- Site root: `website/`
-
-## Flash the Arduino
-1. `& $cli board list`: find the UNO R4 WiFi COM port. If none is listed, the board is unplugged or the cable is charge-only.
-2. `& $cli compile --fqbn arduino:renesas_uno:unor4wifi arduino/SwampTag`
-3. `& $cli upload -p COMx --fqbn arduino:renesas_uno:unor4wifi arduino/SwampTag`
-4. Ask the user to tap the fob and card while `& $cli monitor -p COMx -c baudrate=115200` runs. This needs the user at the hardware, so run it in the background or have the user run it. Expect `TAG:` lines.
-5. Stop the monitor before the website connects. The port is exclusive.
+- Site root: `website/`. Phone terminal page: `website/terminal.html`.
+- Server: `server.py`, with the relay and key check in `terminal.py`.
+- Old Arduino reader: CLI `$cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"`, FQBN `arduino:renesas_uno:unor4wifi`, sketch `arduino/SwampTag`.
 
 ## Serve the site
 Run `python server.py` from the project root (in the background), then open http://localhost:8000 in Chrome or Edge.
 - `curl -s localhost:8000/api/config` should report `"live": true`.
 - If it reports `false`, the `reason` field says why: no key, not seeded, or Nessie unreachable.
+- `python server.py --offline` gives demo data with no Nessie calls. Use it for tests.
+
+## Connect the phone terminal (Pixel 6a)
+1. On the phone, turn on USB debugging: Settings → About phone → tap Build number 7 times → Developer options.
+2. Plug the phone into the laptop and allow debugging.
+3. On the laptop, open `edge://inspect/#devices` → **Port forwarding** → `8000` → `localhost:8000`. Keep the tab open.
+4. On the phone, open Chrome at `localhost:8000/terminal.html` and tap **Start terminal**.
+5. The dashboard's **Terminal** row shows "Phone terminal connected".
+- **Check the relay without a phone:**
+  - `curl -s localhost:8000/api/terminal/state` (calling this marks the "phone" as online).
+  - `curl -s -X POST localhost:8000/api/terminal/read -H "Content-Type: application/json" -d "{\"serialNumber\":\"04:A1:B2:C3\"}"`
 
 ## Nessie
-- The key is in `.env` (gitignored). Never print or commit it.
-- `python tools/seed_nessie.py --fresh` creates a clean demo account. Run it before judging, so earlier test payments don't clutter the activity list.
+- The key is in `.env`, which is committed to the private repo on purpose. Never print it.
+- `python tools/seed_nessie.py --fresh` creates a clean demo account. Only do it if the team agrees, then commit the new `nessie_ids.json`.
 - Check data through the proxy: `curl -s localhost:8000/api/nessie/accounts/<accountId>/purchases`. The `accountId` is in `nessie_ids.json`.
-- API quirks (whole dollars, 404 for empty lists, P2P = transfer + deposit) are listed in CLAUDE.md.
-- Quick check of the risk rules: `node -e "const {assessRisk}=require('./website/js/risk.js'); ..."`
+- API quirks are in CLAUDE.md.
 
 ## Demo checklist
 1. The home page renders, and its links go to login → dashboard. The badge reads **Live · Capital One Nessie**.
-2. Connect reader → the status dot turns green.
+2. The phone terminal is connected: the dashboard's Terminal row is green, and the phone shows "Ready for payment".
 3. Simulate fraud *before* linking a key → the charge goes through (the "today's world" contrast).
-4. Link a key → tap the fob → its UID shows and the key tile reads "Protected". The tap-limit box opens with $200 filled in → enter $50 and save.
-5. Pay in store → Starbucks $6 → approved with **no tap** (Trusted chip).
-6. Pay in store → UF Bookstore $90 → "Over your $50 tap limit" shows → tap the fob → ✓ on the matrix, and the row reads "Verified with SwampTag".
-7. Simulate fraud → the reasons show distance and spend → tap the white card → ✗ on the matrix, Blocked row, Shield count +1.
-8. Send $25 → no tap (under the $50 limit). Pay the $64 Duke Energy bill → needs a tap, and the bill disappears from Upcoming bills.
-9. Send $500 → choose "A family member says they are in trouble" → the warning is read aloud, the fraud line shows, and Cancel keeps the money. Demo code 2468 lets it continue to the tap.
+4. Link a key: click Link a key → the phone says "Hold the key you want to link to the back of the phone" → hold it near the camera → its ID shows on the dashboard. In the tap-limit box, enter $50.
+5. Pay in store → Starbucks $6 → approved with **no tap**. The phone shows "Within your tap limit".
+6. Pay in store → UF Bookstore $90 → the phone shows $90.00 and the key prompt → hold the key to the back → ✓ on the phone and the dashboard.
+7. Simulate fraud → hold up a copied key or a different key → ✗ on the phone with the reason, a Blocked row, and the Shield count goes up by 1.
+8. Pay the $64 Duke Energy bill → needs the key, and the bill disappears from Upcoming bills.
+9. Send $500 → choose "A family member says they are in trouble" → the warning is read aloud and the fraud line shows. Cancel keeps the money; demo code 2468 continues to the key.
 10. With Auth0 configured: sign in, link a key, then sign in from another browser profile. The key is already linked.
-11. Stop the server (or use `python server.py --offline`) or unplug the Arduino → the offline badge and the T/X keys still work.
-10. Reset demo clears the key, alerts and blocked rows. Nessie data needs `--fresh`.
+11. **Fallbacks:** unplug the phone → the dashboard's T/X keys still work. On a laptop with no NFC, the terminal page shows Correct / Wrong key buttons.
+12. Reset demo clears the key, alerts and blocked rows. Nessie data needs `--fresh`.
 
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
-| `ERROR:READER` / ✗ at boot | RC522 wiring. Check 3.3V (not 5V), GND, SDA→D10, RST→D9. Unsoldered header pins are a common cause. |
-| No `TAG:` lines but `READY` printed | Hold the tag flat on the reader for about 1 s. Check MISO→D12 and MOSI→D11 aren't swapped. |
-| "Could not open the port" in the site | Serial Monitor or `arduino-cli monitor` is still open. Close it. |
-| Connect button disabled | Not Chrome or Edge, or the page isn't on localhost/https. |
-| Upload fails "port busy" | Close the browser tab or click Disconnect, then upload. |
-| Tag taps don't approve | The linked UID is different from the tag being tapped. Re-link the key. |
+| Phone can't open `localhost:8000` | Port forwarding is off, or the inspect tab is closed. Re-add `8000 → localhost:8000` in edge://inspect, and make sure the server is running. |
+| Terminal says "No Web NFC here" | It's not running in Chrome on Android, or NFC is off (Settings → Connected devices → NFC). Use the demo buttons meanwhile. |
+| The phone doesn't react to the key | Hold it flat against the back, near the camera, for a second. Check the key in the NFC Tools app on the bare phone. If the phone sees only the serial number, the key needs NTAG215 tags (`docs/KEY_FORMAT.md`). |
+| Every key is blocked with "Key code doesn't match" | `KEY_SECRET` in `.env` doesn't match the key device's. Restart `server.py` after changing `.env`. |
+| A good key is blocked with "Old key code" | The key device didn't raise its counter, or `key_counters.json` holds a higher counter from testing. Delete that file and restart the server. |
+| Terminal picture is upside down | Tap the ⟲ button in the terminal's corner. The choice is remembered. |
 | Badge says "Offline demo data" | Hover over it for the reason. Check `.env`, `nessie_ids.json`, and `curl localhost:8000/api/config`. |
-| Fob doesn't read through the printed lid | Hold the fob flat on TAP HERE. Lower `rc_gap` or `tap_t` in `cad/swamptag_reader.scad` and reprint the lid. |
 | Auth0 login loops back to the login page | Check that the Callback, Logout and Web Origin URLs include `http://localhost:8000` and `/login.html`. Also check the `AUTH0_DOMAIN` and `AUTH0_CLIENT_ID` values in `.env`. |
 | Auth0 error "not authorized to access resource server" | APIs → Auth0 Management API → Application Access → give the SPA user access with `read:current_user` and `update:current_user_metadata`. |
-| Warning isn't read aloud | The browser has no voice installed, or the tab is muted. The text is still on screen. |
+| Warning isn't read aloud | The device has no voice installed, or it's muted. The text is still on screen. |
 | Nessie returns HTTP 400 | Field names changed. Probe with an extra field `{"zzz":1}`: the error lists required and rejected fields. |
-| Upload fails or the board isn't detected | Double-tap the R4's RESET button to enter bootloader mode, then upload again. |
+| Old Arduino reader: `ERROR:READER` or no `TAG:` lines | RC522 wiring: 3.3V (not 5V), SDA→D10, RST→D9, MISO→D12, MOSI→D11. Close Serial Monitor before the site connects. |

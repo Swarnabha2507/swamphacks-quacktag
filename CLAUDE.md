@@ -3,6 +3,9 @@
 RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the ledger.
 - **Tracks:** Hardware & Physical Computing, First Timers, Capital One – Best Use of Nessie, Best Use of Auth0.
 - **User:** a first-time hackathon participant who wants the hardware kept as simple as possible.
+- **Current hardware (since 2026-10-17):**
+  - **The reader is the user's Pixel 6a.** It runs `website/terminal.html` (Web NFC). (The 3D-printed cases were dropped on 2026-10-17.)
+  - The Arduino + RC522 is now attached to the key and rewrites it at intervals. That **key device is a teammate's job**: don't build it, only agree the format (`docs/KEY_FORMAT.md`).
 
 ## Layout
 - `arduino/SwampTag/SwampTag.ino`: UNO R4 WiFi + RC522 sketch. LED matrix feedback, no other parts.
@@ -11,10 +14,29 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
   - Serves `website/`. `/api/config` returns live status and the seeded IDs.
   - `/api/nessie/<path>` forwards to Nessie with `?key=`.
   - Binds 127.0.0.1:8000. Run it instead of `http.server`.
+  - `/api/terminal/*` is the **phone terminal relay** (`terminal.py`):
+    - `POST command {cmd, details}`: from the dashboard (WAIT / OK / DENY / IDLE).
+    - `GET state`: polled by the phone. Polling marks the phone as online.
+    - `POST read {serialNumber, texts[], simulate?}`: from the phone.
+    - `GET events?since=N`: polled by the dashboard. `since=-1` skips old events.
+  - `KEY_SECRET` (`.env`) turns on key-code checks.
+- `terminal.py`:
+  - **`KeyChecker`** checks `ST1:<keyId>:<counter>:<code>`: an HMAC-SHA256 code, and a counter that must go up. Counters are saved in `key_counters.json` (gitignored).
+    - Falls back to the tag's serial number when there's no ST1 record.
+    - Returns `TAG:<id>` or `BADTAG:<reason>`.
+  - **`TerminalRelay`** holds the in-memory, thread-locked state shared by the dashboard and the phone.
 - `tools/seed_nessie.py`: creates the demo data in Nessie and writes `nessie_ids.json`. Use `--fresh` for a new set.
-- `.env` (gitignored) holds `NESSIE_API_KEY`. `nessie_ids.json` is gitignored too.
+- `.env` holds `NESSIE_API_KEY`, and `nessie_ids.json` holds the seeded account IDs.
+  - Both are **committed to the private repo on purpose** (the user's decision), so teammates share one Nessie account.
 - `website/`: static site, no build step.
-  - `js/serial.js`: `SerialLink`, the Web Serial wrapper.
+  - `terminal.html` + `js/terminal.js`: the **phone terminal page**.
+    - One "Start terminal" tap does all of these: `NDEFReader.scan()` **first** (its permission prompt needs the tap; full screen and the orientation lock would use the tap up), then full screen, a portrait lock and a wake lock. The ⟲ button flips the picture 180° (saved in localStorage).
+    - It polls `/api/terminal/state` every 400 ms and posts reads.
+    - It shows Correct key / Wrong key demo buttons when Web NFC isn't available.
+  - `js/terminal-link.js`: `TerminalLink`. Same API as `SerialLink`, talking to the relay. **The dashboard uses it** (`const link = new TerminalLink()`).
+    - `send('WAIT', details)` passes `{amount, name, place, reasons}` (or `{linking:true}`). `DENY` passes `{reason}`.
+    - The dashboard handles `BADTAG:<reason>` (blocks with that reason) and `SIM:GOOD/BAD` (the phone's demo buttons).
+  - `js/serial.js`: `SerialLink`, the Web Serial wrapper for the old USB reader. Still used by `reader-test.html`.
     - `_shutdown()` must close in order (cancel reader → await read pipe → close writer → await write pipe → close port), or the port stays open and the next connect fails with "already open".
     - A `_busy` flag stops overlapping opens/closes; it reopens allowed ports on page load (`reconnect()`) and on replug (`connect` event).
   - `reader-test.html`: standalone reader check (shows each tag ID, flags the same key tapped twice). Full walkthrough in `docs/HOW_IT_WORKS.md`.
@@ -35,7 +57,7 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
     - The Management API audience and scopes are requested at login.
     - The key is kept in `user_metadata.swamptag_key`.
     - A `sessionStorage` flag marks a demo-account session.
-- `cad/swamptag_reader.scad`: parametric OpenSCAD enclosure (`part` = assembly/base/lid/diffuser/fit_test). Core OpenSCAD only. Guide in `cad/README.md`. OpenSCAD isn't installed here; the user exports the STLs.
+- `docs/KEY_FORMAT.md`: the agreement with the key-device teammate (ST1 record, HMAC, counter, NTAG215 advice, antenna off between writes).
 - `.claude/skills/redesign-existing-projects/`: UI audit skill (MIT, from Leonxlnx/taste-skill), used for the cleanup pass.
 - `STYLE_GUIDE.md`: tokens and components. Banking-app look: gradient tiles, navy/blue, red only for accents and danger. Geist font, square badges, tabular figures.
 
@@ -50,10 +72,12 @@ RFID tap-to-approve 2FA for debit payments, with Capital One's Nessie API as the
 - **Purchases don't change `account.balance`.** The dashboard computes `openingBalance + deposits − purchases − transfers`.
 - How a payment was authorized is stored in `description`: `SwampTag verified` / `SwampTag trusted` / `No SwampTag check`, joined with ` · ` (see `describe()` / `parseDescription()` in bank.js).
 
-## Serial protocol (115200 baud, newline-terminated)
-- Arduino → site: `READY`, `ERROR:READER`, `TAG:<HEX UID>`
-- Site → Arduino: `WAIT`, `OK`, `DENY`, `IDLE`
-- The site decides whether a tag is valid. The Arduino never decides.
+## Reader protocol
+The same words are used over the phone relay and the old USB serial link (115200 baud, newline-terminated):
+- **Reader → dashboard:** `TAG:<id>`, plus `BADTAG:<reason>` and `SIM:GOOD/BAD` from the phone. The old Arduino also sends `READY` and `ERROR:READER`.
+- **Dashboard → reader:** `WAIT`, `OK`, `DENY`, `IDLE`.
+- The dashboard decides whether the key is the linked one. The phone and Arduino never decide. The server only checks that the key's code is genuine and fresh.
+- **Phone ↔ laptop:** the USB cable plus `edge://inspect` **port forwarding 8000 → localhost:8000**. To the phone, the page is then `localhost`, a secure context, so Web NFC works.
 
 ## Wiring
 RC522 → R4: SDA→D10, SCK→D13, MOSI→D11, MISO→D12, RST→D9, GND→GND, **3.3V→3.3V**, IRQ unconnected.
@@ -66,10 +90,14 @@ RC522 → R4: SDA→D10, SCK→D13, MOSI→D11, MISO→D12, RST→D9, GND→GND,
   1. Start headless Edge with `--remote-debugging-port`.
   2. Drive it over the Chrome DevTools Protocol from a Node script (Node 24 has a global `WebSocket`).
   3. Click through every flow on the `--offline` server.
+  4. For the phone terminal: open `terminal.html` in a second target (`PUT /json/new`) and POST fake reads to `/api/terminal/read`. Start the server with `KEY_SECRET` set to test ST1 codes, then delete `key_counters.json` afterwards.
 - `node --check website/js/*.js` checks syntax. `risk.js` can be `require`d in Node for quick rule tests.
 
 ## Conventions
-- Plain HTML/CSS/vanilla JS. Scripts load in order serial → store → risk → bank → dashboard.
+- Plain HTML/CSS/vanilla JS.
+- Dashboard script order: config → serial → terminal-link → store → risk → scamcheck → bank → auth → dashboard.
 - Pass user/serial/Nessie text through `escapeHtml()` before putting it in `innerHTML`.
-- Keep the offline fallback and demo mode (T/X keys) working with no key, no internet and no Arduino.
-- Never print or commit the Nessie key.
+- Keep the offline fallback and demo mode working with no key, no internet and no phone: the T/X keys on the dashboard and the demo buttons on the terminal.
+- The Nessie key lives in the committed `.env` because the repo is private (the user's choice). Never print it in chat or logs.
+- Before the repo is ever made public, rotate the key at nessieisreal.com.
+- Only one person should run `seed_nessie.py --fresh`, then commit the new `nessie_ids.json`.

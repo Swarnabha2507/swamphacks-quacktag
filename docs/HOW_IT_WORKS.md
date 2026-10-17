@@ -179,7 +179,6 @@ py tools/seed_nessie.py  # create the demo account in Nessie (needs NESSIE_API_K
 ---
 
 ## 6. Other folders
-- **`cad/`:** a 3D-printable case for the reader, written in OpenSCAD. See `cad/README.md`.
 - **`.claude/skills/`:** helper instructions for Claude Code (demo checklist and UI audit).
 
 ---
