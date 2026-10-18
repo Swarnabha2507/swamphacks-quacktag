@@ -554,3 +554,35 @@ A force-push replaces what's on GitHub and can delete teammates' commits that yo
 <details><summary>Answer</summary>
 `.env.local` (your Gemini key) and changes to `.gitignore`. `.env.local` is listed in `.git/info/exclude` (a local-only ignore list), and the local `pre-commit` and `pre-push` hooks refuse commits or pushes that include either file. Files are also staged by name, never with `git add -A`.
 </details>
+
+## 17. How the fob and the server share a secret (rolling key codes)
+
+**17.1** What is the "seed" that the key device and the server share, and where does each side keep it?
+<details><summary>Answer</summary>
+`KEY_SECRET`, one random string. The key device has it compiled into its firmware (`firmware/swamptag_key/include/secrets.h`); the server reads it from `.env.local` / `.env`. It is never written on the fob and never sent over the air.
+</details>
+
+**17.2** What exactly is written on the fob, and how often?
+<details><summary>Answer</summary>
+`ST1:<keyId>:<counter>:<code>` as an NDEF text record, rewritten about every 15 seconds while the fob rests on the key device. keyId = the fob's serial number, counter = a number that only goes up (saved in flash), code = first 8 hex characters of HMAC-SHA256(KEY_SECRET, "keyId:counter").
+</details>
+
+**17.3** The server never talks to the key device. How can it know the code is right?
+<details><summary>Answer</summary>
+It recomputes the same HMAC from the keyId and counter it just read, using its own copy of KEY_SECRET. Same secret + same message = same code. Without the secret, nobody can make a matching code for a new counter.
+</details>
+
+**17.4** Why does a copied fob get refused even though its code is valid?
+<details><summary>Answer</summary>
+The server remembers the highest counter it accepted for each key (`key_counters.json`). A copy carries an older counter, so `counter <= last accepted` → "Old key code, possibly a copied key".
+</details>
+
+**17.5** Is this time-based like a bank's code app? What's the difference?
+<details><summary>Answer</summary>
+No, it's counter-based (like HOTP). The server doesn't care what time the code was made, only that the counter is new. A bank app (TOTP) uses the clock instead, which would need the fob and server to agree on the time; a battery-less fob has no clock.
+</details>
+
+**17.6** What's the weak spot?
+<details><summary>Answer</summary>
+Whoever reads the newest code first can use it once (a skimmer near your pocket). And the fob only gets a new code while it sits on the key device. Real products fix this with challenge-response chips that compute a fresh answer on every tap.
+</details>
