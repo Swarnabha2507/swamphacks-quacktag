@@ -1,4 +1,4 @@
-// SwampTag — RFID second factor for debit payments
+// QuackTag — RFID second factor for debit payments
 // Board: Arduino UNO R4 WiFi   Reader: RC522 (SPI)
 //
 // Serial protocol (115200 baud, one message per line):

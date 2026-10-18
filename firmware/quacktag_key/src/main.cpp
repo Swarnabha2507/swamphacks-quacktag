@@ -1,4 +1,4 @@
-// SwampTag key device: Adafruit Feather RP2040 + RC522.
+// QuackTag key device: Adafruit Feather RP2040 + RC522.
 //
 // env:key  (default)  While the key fob rests on the reader, writes a fresh code onto it
 //                     every 15 s:  ST1:<keyId>:<counter>:<code>
@@ -156,8 +156,40 @@ struct Saved {
 };
 const uint32_t MAGIC = 0x53544B31;  // "STK1"
 
+// Only the key gets rewritten. Without this, a debit card left on the reader was
+// overwritten with a key code (2026-10-17). KEY_UID (secrets.h) pins the one fob this
+// device may write; with it empty, any tag is allowed EXCEPT one holding a card record.
+#ifndef KEY_UID
+#define KEY_UID ""
+#endif
+
 String currentUid;
+bool currentAllowed = false;
 uint8_t misses = 0;
+
+// Called once when a tag is placed. Returns false (and says why) for anything that isn't the key.
+bool isTheKey(const String &uid) {
+  const String pinned = String(KEY_UID);
+  if (pinned.length() && !uid.equalsIgnoreCase(pinned)) {
+    Serial.print("SKIP ");
+    Serial.print(uid);
+    Serial.print(": not this device's key (KEY_UID ");
+    Serial.print(pinned);
+    Serial.println("). Left untouched.");
+    return false;
+  }
+  String text, err;
+  const bool read = NdefTag::readText(rfid, text, err);
+  rfid.PCD_StopCrypto1();
+  NdefTag::select(rfid);  // fresh session for the write
+  if (read && text.startsWith("SC1:")) {
+    Serial.print("SKIP ");
+    Serial.print(uid);
+    Serial.println(": this is the debit card (SC1 record). Left untouched.");
+    return false;
+  }
+  return true;
+}
 unsigned long lastWrite = 0;
 bool writeNow = false;
 
@@ -240,9 +272,11 @@ void loop() {
     Serial.print(" (");
     Serial.print(NdefTag::kindName(NdefTag::kindOf(rfid)));
     Serial.println(")");
-    led(0, 0, 60);
+    currentAllowed = isTheKey(uid);
+    if (!currentAllowed) flash(120, 50, 0, 3);  // orange blinks: not the key, nothing written
+    led(currentAllowed ? 0 : 60, currentAllowed ? 0 : 25, currentAllowed ? 60 : 0);
   }
-  if (writeNow || millis() - lastWrite >= REWRITE_MS) {
+  if (currentAllowed && (writeNow || millis() - lastWrite >= REWRITE_MS)) {
     writeNow = false;
     lastWrite = millis();
     rotate();

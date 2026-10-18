@@ -1,4 +1,4 @@
-"""Phone terminal relay and SwampTag key check (used by server.py).
+"""Phone terminal relay and QuackTag key check (used by server.py).
 
 The Pixel phone is the payment terminal: it shows the amount and reads the key fob
 with Web NFC. The laptop dashboard decides whether the key is the linked one.
@@ -65,12 +65,12 @@ class KeyChecker:
                 self._save()
             return f"TAG:{key_id.upper()}"
 
-        # No SwampTag code on the tag (or the phone can only see its serial number):
+        # No QuackTag code on the tag (or the phone can only see its serial number):
         # fall back to the tag's serial number, like the old USB reader.
         uid = re.sub(r"[^0-9A-Fa-f]", "", serial or "").upper()
         if uid:
             return f"TAG:{uid}"
-        return "BADTAG:Couldn't read a SwampTag code from this key"
+        return "BADTAG:Couldn't read a QuackTag code from this key"
 
     def _save(self):
         if self.counters_file:
@@ -142,7 +142,7 @@ class TerminalRelay:
 
 
 # ---------- Gas-station checkout (website/pump.html) ----------
-# The fake debit card holds a static record written by firmware/swamptag_key (env:card):
+# The fake debit card holds a static record written by firmware/quacktag_key (env:card):
 #     SC1:<last4>:<holder>:<keyId>      keyId = UID of the key fob the card is paired with
 # Checkout = card → PIN → key. The key must carry a fresh ST1 code (KeyChecker) AND be
 # the card's paired key. If the phone can only see tag serial numbers (no NDEF data),
@@ -185,11 +185,11 @@ class PumpAuthorizer:
                         "keyId": m.group(3).upper(), "mode": "ndef", "cardId": clean_uid(serial) or m.group(1)}
         uid = clean_uid(serial)
         if uid and uid in self.pairings:
-            return {"ok": True, "last4": uid[-4:], "holder": "SwampTag cardholder",
+            return {"ok": True, "last4": uid[-4:], "holder": "QuackTag cardholder",
                     "keyId": self.pairings[uid], "mode": "serial", "cardId": uid}
         if uid and not texts:
             return {"ok": False, "reason": "This phone can only see the card's ID. Pair the card with its key in pump setup (⚙).", "serial": uid}
-        return {"ok": False, "reason": "That isn't a SwampTag card. Write it with the card-writer firmware first."}
+        return {"ok": False, "reason": "That isn't a QuackTag card. Write it with the card-writer firmware first."}
 
     def pair(self, card_serial, key_serial):
         card, key = clean_uid(card_serial), clean_uid(key_serial)
@@ -243,7 +243,7 @@ class PumpAuthorizer:
             texts, serial = self.demo_key_texts(key["simulate"], c["keyId"])
         has_code = any(ST1.fullmatch(t.strip()) for t in texts)
         if c["mode"] == "ndef" and not has_code:
-            return {"approved": False, "reason": "This key has no SwampTag code. Rest it on its key dock first", "step": "key"}
+            return {"approved": False, "reason": "This key has no QuackTag code. Rest it on its key dock first", "step": "key"}
 
         line = self.checker.check(serial, texts)
         if line.startswith("BADTAG:"):

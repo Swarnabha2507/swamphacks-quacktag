@@ -8,7 +8,7 @@ It can also SIMULATE problems (first model busy, no internet) so you can watch t
 safety switch and the offline backup work. It shows each stage's result, timing, the
 server's log lines and the full error if something breaks.
 
-Uses port 8001 so it doesn't clash with the SwampTag site (server.py, port 8000).
+Uses port 8001 so it doesn't clash with the QuackTag site (server.py, port 8000).
 """
 
 import contextlib

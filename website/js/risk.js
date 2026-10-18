@@ -1,4 +1,4 @@
-// Smart taps: decides whether a payment needs a SwampTag tap. The user's tap limit
+// Smart taps: decides whether a payment needs a QuackTag tap. The user's tap limit
 // decides; purchase history and merchant locations (from Nessie when live) only
 // explain on the tap screen why a payment looks unusual.
 

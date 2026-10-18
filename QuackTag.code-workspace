@@ -3,8 +3,8 @@
   // extension finds the key-device firmware: it only looks for platformio.ini at the
   // top of a workspace folder.
   "folders": [
-    { "name": "SwampTag", "path": "." },
-    { "name": "Key device firmware (PlatformIO)", "path": "firmware/swamptag_key" }
+    { "name": "QuackTag", "path": "." },
+    { "name": "Key device firmware (PlatformIO)", "path": "firmware/quacktag_key" }
   ],
   "settings": {
     "files.exclude": {

@@ -1,4 +1,4 @@
-// Scam check: before a large transfer, SwampTag asks "Why are you sending this money?"
+// Scam check: before a large transfer, QuackTag asks "Why are you sending this money?"
 // Red-flag answers match common scams that target older adults (grandparent,
 // government impostor, romance and prize scams). A flagged transfer:
 //   - shows a plain-language warning and reads it aloud (browser text-to-speech)
@@ -11,7 +11,7 @@
 
 const SCAM_CHECK_FROM = 200; // ask why for transfers of this many dollars or more
 
-const TRUSTED_CONTACT = { name: 'Maya Patel', relation: 'granddaughter' };
+const TRUSTED_CONTACT = { name: 'Angel', relation: 'friend' };
 
 // Fictional 555 number for the demo. The agent on the call reads out DEMO_VERIFY_CODE.
 const FRAUD_LINE = { label: '(352) 555-0147', tel: '+13525550147', spoken: '3 5 2. 5 5 5. 0 1 4 7' };

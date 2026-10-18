@@ -1,4 +1,4 @@
-// SwampTag phone terminal (runs on the Pixel 6a).
+// QuackTag phone terminal (runs on the Pixel 6a).
 // - Shows what the dashboard is waiting for (amount, merchant) and the result.
 // - Reads the key with Web NFC (Chrome on Android) and sends it to server.py,
 //   which checks the key's code and tells the dashboard (terminal.py).
@@ -8,7 +8,7 @@
 const POLL_MS = 400;
 const RESULT_SHOW_MS = 5000;
 const SAME_TAG_IGNORE_MS = 2500;
-const FLIP_KEY = 'swamptag-terminal-flip-v2';
+const FLIP_KEY = 'quacktag-terminal-flip-v2';
 
 const $ = (sel) => document.querySelector(sel);
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -45,7 +45,7 @@ function render() {
       <div class="term-result good">✓</div>
       <h1 class="term-title good">${request && request.linking ? 'Key linked' : 'Approved'}</h1>
       ${request && request.amount ? `<div class="term-amount">${money.format(request.amount)}</div>` : ''}
-      <p class="term-sub">${request && request.trusted ? 'Within your tap limit, no key needed' : 'Verified with your SwampTag key'}</p>`;
+      <p class="term-sub">${request && request.trusted ? 'Within your tap limit, no key needed' : 'Verified with your QuackTag key'}</p>`;
   } else if (showResult && result === 'DENY') {
     html = `
       <div class="term-result bad">✕</div>
@@ -64,12 +64,12 @@ function render() {
       <div class="term-amount">${money.format(request.amount || 0)}</div>
       ${reasons.length ? `<div class="term-reasons">${reasons.map((r) => `<span class="badge badge-amber">${escapeHtml(r)}</span>`).join('')}</div>` : ''}
       ${TAP_ICON}
-      <p class="term-prompt">Hold your SwampTag key to the back of the phone</p>`;
+      <p class="term-prompt">Hold your QuackTag key to the back of the phone</p>`;
   } else {
     html = `
       <div class="term-idle">${TAP_ICON}</div>
       <h1 class="term-title">Ready for payment</h1>
-      <p class="term-sub">Start a payment on the SwampTag dashboard.</p>`;
+      <p class="term-sub">Start a payment on the QuackTag dashboard.</p>`;
   }
 
   if (notice) html += `<p class="term-notice">${escapeHtml(notice)}</p>`;

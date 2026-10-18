@@ -204,7 +204,7 @@ bool classicWriteSectors(MFRC522 &rfid, const uint8_t *buf, String &err) {
   for (uint8_t s = 1; s <= NDEF_SECTORS; s++) {
     const uint8_t first = s * 4;
     if (!authOrReselect(rfid, MFRC522::PICC_CMD_MF_AUTH_KEY_B, first + 3, KEY_FACTORY)) {
-      err = "can't unlock sector " + String(s) + " (not a SwampTag-formatted card?)";
+      err = "can't unlock sector " + String(s) + " (not a QuackTag-formatted card?)";
       return false;
     }
     for (uint8_t b = 0; b < 3; b++) {

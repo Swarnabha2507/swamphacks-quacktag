@@ -1,4 +1,4 @@
-# SwampTag key device firmware (Feather RP2040 + RC522)
+# QuackTag key device firmware (Feather RP2040 + RC522)
 
 Two programs in one PlatformIO project:
 
@@ -27,7 +27,7 @@ Same as Diego's port:
 `include/secrets.h` (gitignored) holds `KEY_SECRET`, and it **must equal `KEY_SECRET` in the project's `.env`**, or the pump says "Key code doesn't match". If `secrets.h` is missing, the build uses `secrets.example.h` and warns you. The card's last 4 digits and holder name are set in the same file.
 
 ## Build and flash in VS Code
-1. **Open the workspace:** File → **Open Workspace from File…** → `SwampTag.code-workspace` (in the project root). PlatformIO only finds projects at the top of a workspace folder, and this file adds `firmware/swamptag_key` as one.
+1. **Open the workspace:** File → **Open Workspace from File…** → `QuackTag.code-workspace` (in the project root). PlatformIO only finds projects at the top of a workspace folder, and this file adds `firmware/quacktag_key` as one.
 2. **Pick the program:** click the environment name in the blue status bar (it says `env:key`) and choose **`env:key`** (key device) or **`env:card`** (card writer).
 3. **Build and upload:** use the status bar's **✓ Build** and **→ Upload** buttons.
    - Upload needs **no extra driver**. `tools/uf2_upload.py` reboots the Feather into its bootloader, waits for the **RPI-RP2** drive and copies `firmware.uf2` onto it.
@@ -77,3 +77,10 @@ pio device monitor          # watch it
 | `ERROR:unsupported tag type` | Use the kit's fob/card (MIFARE Classic 1K) or NTAG213/215 tags. |
 | Writes work but the phone sees no data | The phone can't read MIFARE Classic data. Use the pump's ⚙ setup to pair by ID, or switch to NTAG215 tags. |
 | Pump says "Key code doesn't match" | `KEY_SECRET` in `secrets.h` and `.env` differ. Fix it, rebuild, reflash, and restart `server.py`. |
+
+## Only the key gets written
+The key firmware rewrites **only the key fob**. A tag placed on the reader is checked once:
+- **It holds a debit-card record (`SC1:`):** left untouched, with orange blinks and `SKIP <uid>: this is the debit card` in the log.
+- **`KEY_UID` is set in `include/secrets.h` and this isn't that UID:** also left untouched. Set it to your fob's UID (the hex after `PLACED` in the log) so even a blank or damaged card can never become a key.
+
+If a card was already overwritten, restore it: flash `env:card`, tap the fob, then the card. Then flash `env:key` again.

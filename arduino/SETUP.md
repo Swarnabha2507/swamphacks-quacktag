@@ -1,4 +1,4 @@
-# SwampTag hardware setup
+# QuackTag hardware setup
 
 You only need the board, the RFID reader, 7 jumper wires, and the fob and card that came with the reader. The ✓ / ✗ feedback uses the **built-in LED matrix** on the UNO R4 WiFi, so there's nothing else to wire.
 
@@ -9,7 +9,7 @@ You only need the board, the RFID reader, 7 jumper wires, and the fob and card t
 | Arduino UNO R4 WiFi | with a USB-C data cable |
 | RC522 RFID module | the blue board, usually sold with a white card and a blue key fob |
 | 7 female-to-male jumper wires | |
-| Key fob | the **real owner's** SwampTag key |
+| Key fob | the **real owner's** QuackTag key |
 | White card | plays the **thief's tag** in the demo |
 | *(optional)* piezo buzzer | + leg to D8, − leg to GND, then set `USE_BUZZER 1` in the sketch |
 
@@ -49,14 +49,14 @@ If your RC522 came without headers soldered on, the jumpers won't make reliable 
 **Option A, Arduino IDE (click-through):**
 1. Tools → Board → Boards Manager → install **Arduino UNO R4 Boards** (already installed on this laptop).
 2. Tools → Manage Libraries → install **MFRC522** by GithubCommunity (already installed). The IDE may warn that the library "may be incompatible" with the R4. You can ignore that because it works fine.
-3. Open `arduino/SwampTag/SwampTag.ino`, select **Arduino UNO R4 WiFi** and its COM port, then click **Upload**.
+3. Open `arduino/QuackTag/QuackTag.ino`, select **Arduino UNO R4 WiFi** and its COM port, then click **Upload**.
 
 **Option B, terminal (`arduino-cli` comes with the IDE):**
 ```powershell
 $cli = "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"
 & $cli board list                                   # find the COM port, e.g. COM5
-& $cli compile --fqbn arduino:renesas_uno:unor4wifi arduino/SwampTag
-& $cli upload  -p COM5 --fqbn arduino:renesas_uno:unor4wifi arduino/SwampTag
+& $cli compile --fqbn arduino:renesas_uno:unor4wifi arduino/QuackTag
+& $cli upload  -p COM5 --fqbn arduino:renesas_uno:unor4wifi arduino/QuackTag
 & $cli monitor -p COM5 -c baudrate=115200           # Ctrl+C to quit
 ```
 

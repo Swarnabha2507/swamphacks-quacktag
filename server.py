@@ -1,4 +1,4 @@
-"""SwampTag dev server.
+"""QuackTag dev server.
 
 Serves the website/ folder and forwards /api/nessie/* to Capital One's Nessie API,
 adding the API key on the server so it never reaches the browser.
@@ -238,7 +238,7 @@ def settle_pump_sale(result, total):
         status, data = nessie_request("POST", f"accounts/{ids['accountId']}/purchases", source="pump", body={
             "merchant_id": merchant["id"], "medium": "balance", "purchase_date": date.today().isoformat(),
             "status": "completed", "amount": int(round(total)),
-            "description": "SwampTag verified · Pump" if result.get("verified") else "No SwampTag check · Pump"})
+            "description": "QuackTag verified · Pump" if result.get("verified") else "No QuackTag check · Pump"})
         purchase_id = (data.get("objectCreated") or {}).get("_id") if isinstance(data, dict) else None
         if status not in (200, 201) or not purchase_id:
             raise OSError(f"Nessie refused the purchase (HTTP {status})")
@@ -460,7 +460,7 @@ def main():
     ports = [a for a in sys.argv[1:] if a.isdigit()]
     port = int(ports[0]) if ports else 8000
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"SwampTag running at http://localhost:{port}  (Ctrl+C to stop)")
+    print(f"QuackTag running at http://localhost:{port}  (Ctrl+C to stop)")
     print("Nessie key:", "found" if API_KEY else "missing (offline demo data)")
     print("Nessie IDs:", "found" if IDS_FILE.exists() else "missing (run python tools/seed_nessie.py)")
     print("Auth0:", "on" if auth0_config() else "off (demo login; add AUTH0_DOMAIN and AUTH0_CLIENT_ID to .env)")

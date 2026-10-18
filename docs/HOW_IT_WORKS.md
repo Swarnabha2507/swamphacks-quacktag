@@ -1,4 +1,4 @@
-# How SwampTag works
+# How QuackTag works
 
 This guide walks through the whole project: the big picture first, then each part in the order a payment flows through it. For setup steps, see the [README](../README.md).
 
@@ -6,7 +6,7 @@ This guide walks through the whole project: the big picture first, then each par
 
 ## 1. The big picture
 
-SwampTag adds a **physical key** to a debit card. When a payment looks risky (by default, anything over **$200**), it waits until the owner taps an RFID key fob on a small reader. A thief with a copied card and your PIN doesn't have the fob, so the payment is blocked.
+QuackTag adds a **physical key** to a debit card. When a payment looks risky (by default, anything over **$200**), it waits until the owner taps an RFID key fob on a small reader. A thief with a copied card and your PIN doesn't have the fob, so the payment is blocked.
 
 ```
  Key fob ──radio──▶ RC522 reader ──SPI──▶ Arduino UNO R4 WiFi
@@ -32,7 +32,7 @@ SwampTag adds a **physical key** to a debit card. When a payment looks risky (by
 
 ---
 
-## 2. The hardware: `arduino/SwampTag/SwampTag.ino`
+## 2. The hardware: `arduino/QuackTag/QuackTag.ino`
 
 `arduino/TagReader/TagReader.ino` is an identical copy.
 
@@ -138,7 +138,7 @@ payFlow / sendFlow / payBillFlow / fraudFlow
         ▼
 startPayment(payment)
   ├─ no key linked ──────────▶ payWithoutKey(): goes straight through (like a normal card today)
-  ├─ assessRisk(): amount ≤ tap limit ─▶ approveTrusted(): sends OK, records it as "SwampTag trusted"
+  ├─ assessRisk(): amount ≤ tap limit ─▶ approveTrusted(): sends OK, records it as "QuackTag trusted"
   └─ amount > tap limit (or Smart taps off) ─▶ requestApproval():
         sends WAIT, shows the reasons, starts a 30-second countdown
         then waits for a TAG:
@@ -147,7 +147,7 @@ startPayment(payment)
            └─ cancel / timeout ──▶ sends IDLE, nothing happens
 ```
 - **Transfers of $200 or more** first go through `scamCheckFlow()`, which asks why you're sending the money. Red-flag answers show a spoken warning and alert the trusted contact. After that, the normal tap rules apply.
-- **`commit()`** writes approved payments to the bank. How each payment was approved is saved in its description: `SwampTag verified`, `SwampTag trusted` or `No SwampTag check`.
+- **`commit()`** writes approved payments to the bank. How each payment was approved is saved in its description: `QuackTag verified`, `QuackTag trusted` or `No QuackTag check`.
 - **Blocked payments** are never sent to the bank; they're only logged on this device.
 
 ### `assessRisk()` in `risk.js`

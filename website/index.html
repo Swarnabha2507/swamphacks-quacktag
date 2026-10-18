@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SwampTag – Tap to approve risky payments</title>
-  <meta name="description" content="SwampTag pairs your debit card with an RFID key. Risky payments need a tap, so a skimmed card and a stolen PIN can't spend your money.">
+  <title>QuackTag – Tap to approve risky payments</title>
+  <meta name="description" content="QuackTag pairs your debit card with an RFID key. Risky payments need a tap, so a skimmed card and a stolen PIN can't spend your money.">
   <meta name="theme-color" content="#004977">
-  <meta property="og:title" content="SwampTag – Tap to approve risky payments">
+  <meta property="og:title" content="QuackTag – Tap to approve risky payments">
   <meta property="og:description" content="Skimmers copy cards. Shoulder-surfers steal PINs. Nobody can steal your tap.">
   <meta property="og:type" content="website">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -20,14 +20,16 @@
 
   <header class="site-nav">
     <div class="container">
-      <a class="logo" href="index.html" aria-label="SwampTag home">
+      <a class="logo" href="index.html" aria-label="QuackTag home">
         <svg viewBox="0 0 32 32" aria-hidden="true">
-          <rect width="32" height="32" rx="9" fill="#004977"/>
-          <circle cx="10" cy="16" r="2.6" fill="#fff"/>
-          <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-          <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#d03027" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  <rect width="32" height="32" rx="9" fill="#004977"/>
+  <path d="M5.2 16.6c1.7 1.5 4.3 1.9 6.8 1.1 2.1-.7 3.6-2.1 6.3-2.1 3.9 0 6.6 2.7 6.6 5.8 0 3.6-3.6 5.9-9.4 5.9-6.4 0-10.6-3.9-10.3-10.7z" fill="#FFC83D"/>
+  <path d="M10.6 20.2c2.4 2.2 6.2 2.4 8.6.6" stroke="#F5A623" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <circle cx="18.6" cy="11.4" r="5.3" fill="#FFC83D"/>
+  <path d="M23 9.9l5 1.4c.6.2.6 1 0 1.2l-5 1.5z" fill="#F28C1E"/>
+  <circle cx="19.8" cy="10.3" r="1.15" fill="#13294b"/>
         </svg>
-        <span>Swamp<em>Tag</em></span>
+        <span>Quack<em>Tag</em></span>
       </a>
       <nav aria-label="Main">
         <a href="#security">The problem</a>
@@ -49,7 +51,7 @@
         <div>
           <span class="eyebrow">Two-factor protection for your debit card</span>
           <h1>Skimmers copy cards. Shoulder-surfers steal PINs. <span class="accent">Nobody can steal your tap.</span></h1>
-          <p class="lead">SwampTag pairs your debit card with a small RFID key. Anything risky needs a tap from that key, so a cloned card and a stolen PIN still can't spend your money.</p>
+          <p class="lead">QuackTag pairs your debit card with a small RFID key. Anything risky needs a tap from that key, so a cloned card and a stolen PIN still can't spend your money.</p>
           <div class="hero-ctas">
             <a class="btn btn-primary" href="login.html">Open the demo account</a>
             <a class="btn btn-ghost" href="#how">See how it works →</a>
@@ -74,9 +76,9 @@
                 </svg>
               </div>
             </div>
-            <div class="phone-cta">Tap your SwampTag to approve</div>
+            <div class="phone-cta">Tap your QuackTag to approve</div>
             <div class="phone-sub">New merchant · 15× your usual spend</div>
-            <div class="phone-badge">Protected by SwampTag</div>
+            <div class="phone-badge">Protected by QuackTag</div>
           </div>
         </div>
       </div>
@@ -121,8 +123,8 @@
       <div class="container split">
         <div class="section-head">
           <span class="eyebrow">Scam check</span>
-          <h2>Scammers target our parents and grandparents. SwampTag asks why first.</h2>
-          <p>Grandparent scams, fake IRS calls and online romance scams all end the same way: a rushed transfer to a stranger. Before anyone sends $200 or more, SwampTag asks what the money is for.</p>
+          <h2>Scammers target our parents and grandparents. QuackTag asks why first.</h2>
+          <p>Grandparent scams, fake IRS calls and online romance scams all end the same way: a rushed transfer to a stranger. Before anyone sends $200 or more, QuackTag asks what the money is for.</p>
           <p class="section-foot">Coming next: an AI model that reads the full explanation, built on the Gemini API.</p>
         </div>
         <ol class="threat-list guard-list">
@@ -144,7 +146,7 @@
             <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></div>
             <div>
               <h3>Call before you send</h3>
-              <p>To send it anyway, call our fraud line and get a code. A trusted family member gets a heads-up too, and the SwampTag key is still required.</p>
+              <p>To send it anyway, call our fraud line and get a code. A trusted family member gets a heads-up too, and the QuackTag key is still required.</p>
             </div>
           </li>
         </ol>
@@ -155,7 +157,7 @@
       <div class="container">
         <div class="section-head">
           <h2>One extra tap, only when it matters</h2>
-          <p>SwampTag adds something only you carry: a key fob that has to be physically present before a risky payment goes through.</p>
+          <p>QuackTag adds something only you carry: a key fob that has to be physically present before a risky payment goes through.</p>
         </div>
         <div class="steps">
           <div class="step">
@@ -163,7 +165,7 @@
             <p>Check out the way you always do, at the register, the ATM or online.</p>
           </div>
           <div class="step">
-            <h3>SwampTag checks the risk</h3>
+            <h3>QuackTag checks the risk</h3>
             <p>New merchant? Far from home? Unusually large? The payment is held and the reader lights up.</p>
           </div>
           <div class="step step-good">
@@ -246,14 +248,16 @@
 
   <footer class="site-footer">
     <div class="container">
-      <a class="logo" href="index.html" aria-label="SwampTag home">
+      <a class="logo" href="index.html" aria-label="QuackTag home">
         <svg viewBox="0 0 32 32" aria-hidden="true">
-          <rect width="32" height="32" rx="9" fill="#004977"/>
-          <circle cx="10" cy="16" r="2.6" fill="#fff"/>
-          <path d="M14.5 11.2a6.8 6.8 0 0 1 0 9.6" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-          <path d="M18.8 7.4a12.2 12.2 0 0 1 0 17.2" stroke="#d03027" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  <rect width="32" height="32" rx="9" fill="#004977"/>
+  <path d="M5.2 16.6c1.7 1.5 4.3 1.9 6.8 1.1 2.1-.7 3.6-2.1 6.3-2.1 3.9 0 6.6 2.7 6.6 5.8 0 3.6-3.6 5.9-9.4 5.9-6.4 0-10.6-3.9-10.3-10.7z" fill="#FFC83D"/>
+  <path d="M10.6 20.2c2.4 2.2 6.2 2.4 8.6.6" stroke="#F5A623" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <circle cx="18.6" cy="11.4" r="5.3" fill="#FFC83D"/>
+  <path d="M23 9.9l5 1.4c.6.2.6 1 0 1.2l-5 1.5z" fill="#F28C1E"/>
+  <circle cx="19.8" cy="10.3" r="1.15" fill="#13294b"/>
         </svg>
-        <span>Swamp<em>Tag</em></span>
+        <span>Quack<em>Tag</em></span>
       </a>
       <nav aria-label="Footer">
         <a href="#how">How it works</a>

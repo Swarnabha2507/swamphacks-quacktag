@@ -1,13 +1,13 @@
 // Optional sign-in with Auth0. When AUTH0_DOMAIN and AUTH0_CLIENT_ID are set in .env,
 // server.py passes them to the page; otherwise the site keeps using the demo login.
 //
-// The linked SwampTag key is also saved in the user's Auth0 profile
-// (user_metadata.swamptag_key) through the Auth0 Management API, so it follows
+// The linked QuackTag key is also saved in the user's Auth0 profile
+// (user_metadata.quacktag_key) through the Auth0 Management API, so it follows
 // the user to any browser.
 //
 // Needs the Auth0 SPA SDK (global `auth0`) and config.js loaded first.
 
-const DEMO_SESSION_KEY = 'swamptag-demo-login';
+const DEMO_SESSION_KEY = 'quacktag-demo-login';
 
 const Auth = {
   client: null,
@@ -100,11 +100,12 @@ const Auth = {
 
   async getKey() {
     const user = await this.managementApi('GET');
-    return (user.user_metadata && user.user_metadata.swamptag_key) || null;
+    const meta = user.user_metadata || {};
+    return meta.quacktag_key || meta.swamptag_key || null;   // swamptag_key: saved before the rebrand
   },
 
   // Pass null to remove the key from the profile.
   saveKey(uid) {
-    return this.managementApi('PATCH', { user_metadata: { swamptag_key: uid } });
+    return this.managementApi('PATCH', { user_metadata: { quacktag_key: uid } });
   },
 };

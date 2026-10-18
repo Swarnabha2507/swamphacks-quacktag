@@ -1,5 +1,5 @@
 // Swamp Gas & Go: gas-station checkout on the Pixel (Web NFC).
-// Items → Charge → tap the SwampTag debit card → PIN → scan the SwampTag key fob.
+// Items → Charge → tap the QuackTag debit card → PIN → scan the QuackTag key fob.
 // server.py (terminal.py → PumpAuthorizer) decides: right PIN, key paired with this card,
 // and a fresh key code (the key device rewrites the fob every 15 s, so a copy goes stale).
 // Approved sales are written to Nessie at the "Swamp Gas & Go" merchant.
@@ -102,7 +102,6 @@ const cartTotal = () => cartLines().reduce((sum, l) => sum + l.price, 0);
 // ---------- Artwork ----------
 
 const NFC_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8.5 7.5a6 6 0 0 1 0 9"/><path d="M12 5a9.5 9.5 0 0 1 0 14"/><path d="M15.5 2.5a13 13 0 0 1 0 19"/></svg>`;
-const SHIELD_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`;
 const BANK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18L12 4z"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/></svg>`;
 
 function cardArt(last4) {
@@ -110,7 +109,7 @@ function cardArt(last4) {
     <div class="tap-stage" aria-hidden="true">
       <div class="waves"><i></i><i></i><i></i></div>
       <div class="art-card">
-        <span class="ac-brand">SwampTag</span>
+        <span class="ac-brand">QuackTag</span>
         <span class="ac-nfc">${NFC_ICON}</span>
         <span class="ac-chip"></span>
         <span class="ac-num">•••• ${last4 ? escapeHtml(last4) : '••••'}</span>
@@ -128,7 +127,7 @@ function fobArt() {
 }
 
 function cardChip(sub) {
-  return `<div class="pump-card-chip"><span>SwampTag Debit •••• ${escapeHtml(state.cardInfo.last4)}<small>${escapeHtml(sub)}</small></span></div>`;
+  return `<div class="pump-card-chip"><span>QuackTag Debit •••• ${escapeHtml(state.cardInfo.last4)}<small>${escapeHtml(sub)}</small></span></div>`;
 }
 
 function demoButtons(buttons) {
@@ -146,7 +145,7 @@ function shopScreen() {
   return `
     <div class="hello">
       <h1>What are we<br>filling up today?</h1>
-      <p>Pick fuel and snacks, then pay with your card and SwampTag key.</p>
+      <p>Pick fuel and snacks, then pay with your card and QuackTag key.</p>
     </div>
     <section class="pump-section">
       <h2>Fuel · Regular</h2>
@@ -196,7 +195,7 @@ function cardScreen() {
       <p class="pump-amount num">${money.format(cartTotal())}</p>
       ${cardArt()}
       <h1 class="pump-title">Tap your card</h1>
-      <p class="pump-sub">Hold your SwampTag debit card flat against the back of the phone, near the camera.</p>
+      <p class="pump-sub">Hold your QuackTag debit card flat against the back of the phone, near the camera.</p>
       ${demoButtons([['card', 'Tap demo card']])}
       ${cancelButton}
     </div>`;
@@ -223,7 +222,7 @@ function keyScreen() {
     <div class="pump-center">
       ${cardChip('PIN entered')}
       ${fobArt()}
-      <h1 class="pump-title">Scan your SwampTag key</h1>
+      <h1 class="pump-title">Scan your QuackTag key</h1>
       <p class="pump-sub">Hold your key fob against the back of the phone. It proves the card's real owner is here.</p>
       ${demoButtons([['good', 'Right key'], ['copied', 'Copied key'], ['wrong', 'Wrong key']])}
       ${cancelButton}
@@ -248,7 +247,7 @@ function nessieLine(n) {
 
 // Paper-like confetti that bursts from the check mark.
 function confetti(count = 34) {
-  const colors = ['#ffffff', '#ffd84d', '#7fe0b8', '#a8ccff', '#ff9db5'];
+  const colors = ['#FFC83D', '#ffffff', '#F28C1E', '#FFC83D', '#a8ccff', '#ffe28a'];   // QuackTag duck yellow + beak orange
   let html = '';
   for (let i = 0; i < count; i++) {
     const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
@@ -272,7 +271,7 @@ function approvedScreen(r) {
         <h1 class="pump-title">Approved</h1>
         <p class="paid-amount num" data-total="${total}">${money.format(total)}</p>
         <p class="paid-to">paid to <b>${MERCHANT}</b></p>
-        <span class="paid-verified">${SHIELD_ICON}${r.verified ? 'Verified with your SwampTag key' : 'Key matched (ID only)'}</span>
+        <span class="paid-verified"><img class="duck-mark" src="logo.svg" alt="" width="18" height="18">${r.verified ? 'Verified with your QuackTag key' : 'Key matched (ID only)'}</span>
       </div>
       <div class="paid-sheet">
         <div class="grabber"></div>
@@ -280,7 +279,7 @@ function approvedScreen(r) {
           ${cartLines().map((l) => `<div><span>${escapeHtml(l.label)}</span><span class="num">${money.format(l.price)}</span></div>`).join('')}
           <div class="receipt-total"><span>Total</span><span class="num">${money.format(total)}</span></div>
         </div>
-        <div class="paid-meta"><div class="pump-card-chip"><span>SwampTag Debit •••• ${escapeHtml(r.card.last4)}<small>${escapeHtml(r.card.holder || '')}</small></span></div></div>
+        <div class="paid-meta"><div class="pump-card-chip"><span>QuackTag Debit •••• ${escapeHtml(r.card.last4)}<small>${escapeHtml(r.card.holder || '')}</small></span></div></div>
         ${nessieLine(r.nessie)}
         <p class="paid-hint">Put your key back on its dock so it gets a fresh code.</p>
         <button class="pill pill-blue pill-block" data-act="new">Done</button>
@@ -468,7 +467,7 @@ function renderSetup() {
         <div class="mono small">${r.texts.length ? r.texts.map(escapeHtml).join('<br>') : 'No data records. This phone sees the ID only.'}</div>`
       : '<span class="muted">Nothing read yet.</span>'}
     </div>
-    <p class="small muted">${mode === 'ndef' ? 'Mode: the phone reads the data on your tags (full SwampTag codes).' : mode === 'serial' ? 'Mode: ID-only. Cards are matched to keys by pairing below.' : 'Mode: decided by the first card you tap.'}</p>
+    <p class="small muted">${mode === 'ndef' ? 'Mode: the phone reads the data on your tags (full QuackTag codes).' : mode === 'serial' ? 'Mode: ID-only. Cards are matched to keys by pairing below.' : 'Mode: decided by the first card you tap.'}</p>
     <h3 class="setup-h">Pair a card with its key</h3>
     <p class="small muted">Only needed when the phone sees IDs only.</p>
     ${state.pairing === 'card' ? '<p class="setup-prompt">Tap the CARD now…</p>' : state.pairing ? '<p class="setup-prompt">Now tap the KEY FOB…</p>' : '<button class="pill pill-soft" id="pair-btn" style="margin-top:10px">Pair card + key</button>'}`;

@@ -1,6 +1,6 @@
-# SwampTag style guide
+# QuackTag style guide
 
-The look follows modern banking apps: gradient account tiles, navy text, blue actions, and a lot of quiet white space. **Red is only for the logo swoosh, fraud and danger.** It's SwampTag-branded, so don't use any real bank's logo or product names.
+The look follows modern banking apps: gradient account tiles, navy text, blue actions, and a lot of quiet white space. **Red is only for the logo swoosh, fraud and danger.** It's QuackTag-branded, so don't use any real bank's logo or product names.
 
 The cleanup pass followed the `redesign-existing-projects` checklist (installed in `.claude/skills/`, from the MIT-licensed taste-skill). Where that checklist conflicted with the banking reference, the reference won: we kept the blue gradients and account tiles.
 
@@ -13,7 +13,9 @@ All tokens live in `:root` at the top of [website/css/styles.css](website/css/st
 | `--brand` | `#004977` | logo tile, dark buttons (`.btn-navy`) |
 | `--brand-dark` | `#13294b` | headings, tile footers, toasts |
 | `--link` | `#0276b1` | primary buttons, links, focus rings, active tab, switches |
-| `--accent` | `#d03027` | logo swoosh, hero highlight, the Simulate fraud icon |
+| `--accent` | `#F5A623` | brand accent fills and underlines |
+| `--accent-ink` | `#B85F00` | beak orange for text on white (the "Tag" in the wordmark) |
+| `--duck` / `--duck-soft` | `#FFC83D` / `#FFF6DA` | logo duck, hero highlighter, active nav underline, checking-tile top edge |
 | `--green` / `--green-soft` | `#2a7a17` / `#e8f3e4` | verified, approved, live data |
 | `--danger` / `--danger-soft` | `#c4262a` / `#fbeceb` | blocked, fraud, at-risk bar |
 | `--amber` / `--amber-soft` | `#8f5a0b` / `#fbf2e2` | offline data, medium-risk reasons |
@@ -67,9 +69,12 @@ All tokens live in `:root` at the top of [website/css/styles.css](website/css/st
 - No exclamation marks, and none of "seamless", "elevate", or "unleash".
 - Say what happened and what's safe: "Payment blocked. Your $390.00 stayed in your account."
 - **Status words are fixed:**
-  - Verified with SwampTag
+  - Verified with QuackTag
   - Trusted · no tap needed
-  - No SwampTag check
+  - No QuackTag check
   - Blocked
   - Received
   - Requested
+
+## Logo
+`website/logo.svg` (also `favicon.svg`, and inlined in each page's nav): a yellow duck (`#FFC83D`) with an orange beak (`#F28C1E`) on the navy rounded square (`#004977`). It reads at 16 px. The wordmark is `Quack<em>Tag</em>`, with "Tag" in `--accent-ink`. Fraud and danger stay red (`--danger`); never use yellow text on white.

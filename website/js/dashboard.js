@@ -1,4 +1,4 @@
-// SwampTag dashboard: renders the account and runs the tap-to-approve flow.
+// QuackTag dashboard: renders the account and runs the tap-to-approve flow.
 // Money data comes from Bank (Nessie or offline). Key, settings, alerts and
 // blocked attempts live in Store.
 
@@ -49,7 +49,7 @@ async function refresh() {
   renderAll();
 }
 
-// Bank rows plus the rows only SwampTag knows about (blocked attempts, requests), newest first.
+// Bank rows plus the rows only QuackTag knows about (blocked attempts, requests), newest first.
 function allRows() {
   return [...snap.transactions, ...state.localRows].sort((a, b) =>
     new Date(b.date) - new Date(a.date) || (b.order ?? 0) - (a.order ?? 0));
@@ -122,9 +122,9 @@ function renderTransactions(highlightNewest) {
     // Only Verified and Blocked get color; everything else is a quiet gray line.
     let status = '';
     if (tx.status === 'approved') {
-      status = tx.verified ? '<div class="tx-status verified">✓ Verified with SwampTag</div>'
+      status = tx.verified ? '<div class="tx-status verified">✓ Verified with QuackTag</div>'
         : tx.trusted ? '<div class="tx-status">Trusted · no tap needed</div>'
-        : '<div class="tx-status">No SwampTag check</div>';
+        : '<div class="tx-status">No QuackTag check</div>';
     } else if (tx.status === 'blocked') status = '<div class="tx-status blocked">✕ Blocked</div>';
     else if (tx.status === 'received') status = '<div class="tx-status">Received</div>';
     else if (tx.status === 'pending') status = '<div class="tx-status">Requested</div>';
@@ -210,7 +210,7 @@ function renderKeyPanel() {
   const hasKey = Boolean(state.keyUid);
   $('#key-uid').textContent = hasKey ? state.keyUid : 'None';
   $('#key-strip-dot').className = `status-dot ${hasKey ? 'on' : 'off'}`;
-  $('#key-tile-status').textContent = hasKey ? `SwampTag key ...${state.keyUid.slice(-4)} linked` : 'No key linked';
+  $('#key-tile-status').textContent = hasKey ? `QuackTag key ...${state.keyUid.slice(-4)} linked` : 'No key linked';
   $('#key-tile-caption').textContent = hasKey ? 'Risky payments from card ...4821 need your tap' : 'Card ...4821 is unprotected';
   $('#register-btn').textContent = hasKey ? 'Replace key' : 'Link a key';
   $('#unlink-btn').classList.toggle('hidden', !hasKey);
@@ -218,13 +218,24 @@ function renderKeyPanel() {
 
   $('#demo-toggle').checked = state.demoMode;
   $('#scam-toggle').checked = state.scamCheck;
+  $('#autopay-toggle').checked = state.autoPayRequests !== false;
   $('#smart-toggle').checked = !state.alwaysTap;
   $('#tap-limit-text').textContent = `$${state.tapLimit}`;
+}
+
+// Venmo-style row of people you can pay in one tap.
+function renderQuickSend() {
+  const list = $('#quick-list');
+  if (!list) return;
+  list.innerHTML = snap.contacts.map((c, i) => `
+    <button class="quick-person" data-i="${i}"><span class="avatar">${escapeHtml(c.initials)}</span>${escapeHtml(c.name.split(' ')[0])}</button>`).join('')
+    + '<button class="quick-person quick-new" data-req="1"><span class="avatar">+</span>Request</button>';
 }
 
 function renderAll(highlightNewest = false) {
   if (!snap) return;
   renderBalance();
+  renderQuickSend();
   renderTransactions(highlightNewest);
   renderBills();
   renderShield();
@@ -331,7 +342,7 @@ function showResult(kind, title, body, extraHtml = '') {
 function handleLine(line) {
   if (line === 'READY') {
     readerError = false;
-    toast('SwampTag reader is ready');
+    toast('QuackTag reader is ready');
   } else if (line === 'ERROR:READER') {
     readerError = true;
     toast('RFID reader not detected. Check the RC522 wiring.');
@@ -438,7 +449,7 @@ function requestApproval(payment, risk) {
         ${reasons.map((r) => `<span class="badge ${risk.level === 'high' ? 'badge-red' : 'badge-amber'}">${escapeHtml(r)}</span>`).join('')}
       </div>
       ${TAP_ICON}
-      <div class="approval-prompt">Tap your SwampTag key to approve</div>
+      <div class="approval-prompt">Tap your QuackTag key to approve</div>
       <div class="countdown"><div id="cd-bar"></div></div>
       <div class="countdown-text" id="cd-text">Expires in ${APPROVAL_SECONDS}s</div>
       <div class="cancel-row"><button class="btn btn-ghost btn-sm" id="cancel-approval">Cancel</button></div>
@@ -454,7 +465,7 @@ function requestApproval(payment, risk) {
     $('#cd-bar').style.transform = `scaleX(${remaining / APPROVAL_SECONDS})`;
     $('#cd-text').textContent = `Expires in ${remaining}s`;
     if (remaining <= 0) {
-      if (payment.fraud) finish('blocked', 'No SwampTag key was tapped');
+      if (payment.fraud) finish('blocked', 'No QuackTag key was tapped');
       else finish('timeout');
     }
   }, 1000);
@@ -479,11 +490,11 @@ function requestApproval(payment, risk) {
       await commit(payment, 'verified');
       Store.addAlert('good', `Approved ${money.format(payment.amount)} with your key`, payment.name);
       renderShield();
-      showResult('good', 'Payment approved', `${money.format(payment.amount)} to ${payment.name}. Verified with your SwampTag key.`);
+      showResult('good', 'Payment approved', `${money.format(payment.amount)} to ${payment.name}. Verified with your QuackTag key.`);
     } else if (result === 'blocked') {
       link.send('DENY', { reason });
       recordBlocked(payment, reason);
-      showResult('bad', 'Payment blocked', `${reason}. Your ${money.format(payment.amount)} stayed in your account and the attempt is logged in SwampTag Shield.`);
+      showResult('bad', 'Payment blocked', `${reason}. Your ${money.format(payment.amount)} stayed in your account and the attempt is logged in QuackTag Shield.`);
     } else {
       link.send('IDLE');
       closeModal();
@@ -494,13 +505,13 @@ function requestApproval(payment, risk) {
 
 // With no key linked, payments go straight through, like a normal debit card today.
 async function payWithoutKey(payment) {
-  showResult('busy', 'Processing…', 'No SwampTag key is linked, so nothing stops this payment.');
+  showResult('busy', 'Processing…', 'No QuackTag key is linked, so nothing stops this payment.');
   await commit(payment, 'unverified');
   if (payment.fraud) {
-    Store.addAlert('danger', `Fraudulent charge: ${money.format(payment.amount)}`, `${payment.name} · ${payment.place}. Your card wasn't protected by SwampTag.`);
+    Store.addAlert('danger', `Fraudulent charge: ${money.format(payment.amount)}`, `${payment.name} · ${payment.place}. Your card wasn't protected by QuackTag.`);
     renderShield();
     const modal = showResult('bad', 'The thief got through',
-      `A copied card and a stolen PIN were enough to take ${money.format(payment.amount)}. Link a SwampTag key to stop this.`,
+      `A copied card and a stolen PIN were enough to take ${money.format(payment.amount)}. Link a QuackTag key to stop this.`,
       '<button class="btn btn-primary btn-block stack-gap" id="link-now">Link a key now</button>');
     modal.querySelector('#link-now').addEventListener('click', registerFlow);
   } else {
@@ -534,7 +545,7 @@ function readDollars(input) {
   return Math.round(parseFloat(input.value.replace(/[^0-9.]/g, '')));
 }
 
-function sendFlow() {
+function sendFlow(contactIndex) {
   if (!snap) return;
   const modal = openModal(`
     ${modalHead('Send money')}
@@ -547,12 +558,13 @@ function sendFlow() {
       <button class="btn btn-primary btn-block" type="submit">Continue</button>
     </form>`);
   const getContact = wireContactPicker(modal);
+  if (Number.isInteger(contactIndex)) modal.querySelectorAll('.contact-option')[contactIndex]?.click();
   modal.querySelector('#send-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const amount = readDollars(modal.querySelector('#send-amount'));
     if (!(amount > 0)) return toast('Enter an amount of at least $1.');
     const c = getContact();
-    const note = modal.querySelector('#send-note').value.trim() || 'Sent with SwampTag';
+    const note = modal.querySelector('#send-note').value.trim() || 'Sent with QuackTag';
     const payment = { kind: 'transfer', name: c.name, initials: c.initials, place: 'Peer-to-peer', note, contact: c, amount };
     // $200+ (Scam check) or over the tap limit: one voice check, then the normal payment flow.
     if (state.scamCheck && (needsScamCheck(amount) || amount > state.tapLimit)) voiceCheckFlow(payment);
@@ -565,65 +577,172 @@ function sendFlow() {
 let voiceAvailable = false;   // /api/config says whether Whisper can run (server started from .venv)
 loadConfig().then((config) => { voiceAvailable = Boolean(config.voice); });
 
-// Over the tap limit (or a $200+ transfer): ask why, by voice or typing, then review it with Gemini.
-// Red flags get a warning and alert the trusted contact; otherwise it continues to the key tap.
+// Over the tap limit (or a $200+ transfer): a phone-call style screen asks what it's for.
+// The customer just talks (🎤 → Whisper, or the browser's own speech recognition) or types in the
+// message bar. Each answer is reviewed by Gemini; red flags get a warning and alert the trusted
+// contact, otherwise it continues to the key tap.
+const ICON = {
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><path d="M12 18v4"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
+  person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  hangup: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-3.2 0-6.2.9-8.6 2.6-.7.5-.9 1.4-.5 2.1l1.3 2.2c.4.7 1.3 1 2 .7l2.6-1.1c.6-.3 1-.9.9-1.6l-.2-1.6c1.6-.5 3.4-.5 5 0l-.2 1.6c-.1.7.3 1.3.9 1.6l2.6 1.1c.7.3 1.6 0 2-.7l1.3-2.2c.4-.7.2-1.6-.5-2.1C18.2 9.9 15.2 9 12 9z"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg>',
+};
+
 function voiceCheckFlow(payment) {
   const purchase = payment.kind === 'purchase';
   const verb = purchase ? 'pay' : 'send';
+  const first = (snap.customer && snap.customer.firstName) || $('#user-name').textContent.trim().split(' ')[0] || 'there';
+  const question = purchase
+    ? `Hi ${first}. Before you pay ${money.format(payment.amount)} at ${payment.name}, tell me what you're buying and why.`
+    : `Hi ${first}. Before you send ${money.format(payment.amount)} to ${payment.name}, tell me what the money is for.`;
+  const BrowserSpeech = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const canTalk = voiceAvailable || Boolean(BrowserSpeech);
+
   const modal = openModal(`
-    ${modalHead(`Before you ${verb} ${money.format(payment.amount)}`)}
-    <div class="rep-row">
-      <button type="button" class="btn btn-ghost btn-sm" id="rep-now">📞 Talk to a representative</button>
-      <span class="rep-status" id="rep-status" aria-live="polite"></span>
-    </div>
-    <p class="modal-text">${purchase
-      ? `This is over your $${state.tapLimit} tap limit, so SwampTag asks what it's for. Scammers often tell people what to buy, like gift cards.`
-      : 'For larger transfers, SwampTag asks why. Scammers often rush people, especially older adults, into sending money.'}</p>
-    <form id="why-form" novalidate>
-      ${purchase ? '' : `
-      <fieldset class="reason-list">
-        <legend>Why are you sending this money to ${escapeHtml(payment.name)}?</legend>
-        ${TRANSFER_REASONS.map((r) => `
-          <label class="reason"><input type="radio" name="why" value="${r.id}"><span>${escapeHtml(r.label)}</span></label>`).join('')}
-      </fieldset>`}
-      <div class="field">
-        <label for="why-text">${purchase ? `What are you buying at ${escapeHtml(payment.name)}, and why?` : 'Tell us a little more'}</label>
-        <textarea class="input" id="why-text" maxlength="300" placeholder="${purchase ? 'e.g. Textbooks for my class' : 'e.g. My grandson called and needs bail money'}"></textarea>
-        ${voiceAvailable ? `
-        <div class="mic-row">
-          <button type="button" class="btn btn-outline btn-sm" id="mic-btn">🎤 Say it instead</button>
-          <span class="mic-status" id="mic-status" aria-live="polite"></span>
-        </div>` : ''}
+    <div class="call">
+      <div class="call-top">
+        <span class="call-live"><i></i>QuackTag Safety Line</span>
+        <span class="call-timer num" id="call-timer">0:00</span>
       </div>
-      <p class="form-error hidden" id="why-error" role="alert">${purchase ? 'Say or type what it’s for.' : 'Choose a reason, or say or type why.'}</p>
-      <button class="btn btn-primary btn-block" type="submit">Continue</button>
-    </form>`);
+      <div class="call-hero">
+        <div class="call-avatar"><span class="call-ring"></span><span class="call-ring"></span>${ICON.shield}</div>
+        <h2 class="call-name">Before you ${verb} ${money.format(payment.amount)}</h2>
+        <p class="call-sub">${purchase ? 'at' : 'to'} ${escapeHtml(payment.name)} · just tell us what it's for</p>
+      </div>
+      <div class="call-chat" id="call-chat" aria-live="polite"></div>
+      <div class="call-controls">
+        <button type="button" class="call-btn" id="rep-now"><span class="ico">${ICON.person}</span><span>Person</span></button>
+        <button type="button" class="call-btn call-mic" id="mic-btn" ${canTalk ? '' : 'disabled'}><span class="ico">${ICON.mic}</span><span id="mic-label">${canTalk ? 'Tap to talk' : 'Type below'}</span></button>
+        <button type="button" class="call-btn call-end" id="call-end"><span class="ico">${ICON.hangup}</span><span>Cancel</span></button>
+      </div>
+      <form class="call-bar" id="why-form" novalidate>
+        <input id="why-text" class="call-input" maxlength="300" autocomplete="off" placeholder="Or type a message…" aria-label="Type what the money is for">
+        <button class="call-send" type="submit" aria-label="Send message">${ICON.send}</button>
+      </form>
+    </div>`, { locked: true });
+  modal.classList.add('call-modal');
 
-  modal.querySelector('#rep-now').addEventListener('click', () =>
-    callRepresentative(modal.querySelector('#rep-status'), 'Asked for a representative before starting', payment));
-  if (voiceAvailable) wireMicButton(modal);
+  const chat = modal.querySelector('#call-chat');
+  const bubble = (who, html) => {
+    const el = document.createElement('div');
+    el.className = `bubble ${who}`;
+    el.innerHTML = html;
+    chat.appendChild(el);
+    chat.scrollTop = chat.scrollHeight;
+    return el;
+  };
+  bubble('agent', escapeHtml(question));
+  speak(question);
 
-  modal.querySelector('#why-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const choice = modal.querySelector('input[name="why"]:checked');
-    const explanation = modal.querySelector('#why-text').value.trim();
-    if (!choice && !explanation) {
-      modal.querySelector('#why-error').classList.remove('hidden');
-      return;
-    }
+  const started = Date.now();
+  const timer = setInterval(() => {
+    if (!document.body.contains(modal)) return clearInterval(timer);
+    const s = Math.floor((Date.now() - started) / 1000);
+    modal.querySelector('#call-timer').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }, 1000);
+
+  let busy = false;
+  async function answer(text) {
+    text = (text || '').trim();
+    if (!text || busy) return;
+    busy = true;
     stopRecording();
-    const reason = choice ? TRANSFER_REASONS.find((r) => r.id === choice.value) : null;
-    showResult('busy', 'Reviewing your answer…', 'Checking it against common scams that target older adults.');
-    const review = await reviewWithServer(payment, reason, explanation);
+    bubble('me', escapeHtml(text));
+    const thinking = bubble('agent typing', '<span></span><span></span><span></span>');
+    const review = await reviewWithServer(payment, null, text);
+    thinking.remove();
     const checked = { ...payment, voiceChecked: true };
     if (!review.flag) {
       if (review.offline) return offlineAllClear(checked, review);
-      closeModal();
-      toast(`Scam review (${review.source}): no red flags found.`);
-      startPayment(checked);
+      bubble('agent', 'Thank you, that sounds fine. Last step: tap your QuackTag key.');
+      setTimeout(() => {
+        closeModal();
+        toast(`Scam review (${review.source}): no red flags found.`);
+        startPayment(checked);
+      }, 1800);
       return;
     }
     scamWarning(checked, review);
+  }
+
+  modal.querySelector('#why-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const box = modal.querySelector('#why-text');
+    const text = box.value;
+    box.value = '';
+    answer(text);
+  });
+  modal.querySelector('#call-end').addEventListener('click', () => {
+    closeModal();
+    toast('Cancelled. No money was sent.');
+  });
+  modal.querySelector('#rep-now').addEventListener('click', () =>
+    callRepresentative(bubble('agent', ''), 'Asked for a representative during the safety call', payment));
+  if (canTalk) wireCallMic(modal, answer, BrowserSpeech);
+}
+
+// The big mic button: tap to talk, tap again when done. Uses Whisper on the server when it's running,
+// otherwise the browser's own speech recognition.
+function wireCallMic(modal, onText, BrowserSpeech) {
+  const btn = modal.querySelector('#mic-btn');
+  const label = modal.querySelector('#mic-label');
+  const ico = btn.querySelector('.ico');
+  const idle = () => { btn.classList.remove('live'); ico.innerHTML = ICON.mic; label.textContent = 'Tap to talk'; btn.disabled = false; };
+  const live = () => { btn.classList.add('live'); ico.innerHTML = ICON.stop; label.textContent = 'Tap when done'; };
+
+  if (!voiceAvailable) {   // browser speech recognition (Chrome / Edge)
+    let rec = null;
+    btn.addEventListener('click', () => {
+      if (rec) { rec.stop(); return; }
+      rec = new BrowserSpeech();
+      rec.lang = 'en-US';
+      rec.interimResults = false;
+      rec.onresult = (e) => onText(Array.from(e.results).map((r) => r[0].transcript).join(' '));
+      rec.onerror = () => { label.textContent = 'Didn’t catch that'; };
+      rec.onend = () => { rec = null; idle(); };
+      stopSpeaking();
+      rec.start();
+      live();
+    });
+    return;
+  }
+
+  btn.addEventListener('click', async () => {
+    if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      label.textContent = 'No microphone';
+      return;
+    }
+    stopSpeaking();
+    const chunks = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());   // turn the microphone off
+      btn.classList.remove('live');
+      ico.innerHTML = ICON.mic;
+      label.textContent = 'Listening…';
+      btn.disabled = true;
+      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+      try {
+        const res = await fetch('/api/voice/transcribe', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        idle();
+        if (data.text) onText(data.text);
+        else label.textContent = 'Didn’t catch that';
+      } catch (err) {
+        idle();
+        label.textContent = 'Try typing';
+      }
+    };
+    recorder.start();
+    live();
   });
 }
 
@@ -700,52 +819,6 @@ function stopRecording() {
   if (recorder && recorder.state === 'recording') recorder.stop();
 }
 
-function wireMicButton(modal) {
-  const btn = modal.querySelector('#mic-btn');
-  const status = modal.querySelector('#mic-status');
-  const box = modal.querySelector('#why-text');
-  btn.addEventListener('click', async () => {
-    if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
-      status.textContent = `Microphone not available (${err.name}). You can type instead.`;
-      return;
-    }
-    const chunks = [];
-    recorder = new MediaRecorder(stream);
-    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-    recorder.onstop = async () => {
-      stream.getTracks().forEach((t) => t.stop());   // turn the microphone off
-      btn.textContent = '🎤 Say it instead';
-      btn.classList.remove('recording');
-      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
-      status.textContent = 'Listening to your recording…';
-      btn.disabled = true;
-      try {
-        const res = await fetch('/api/voice/transcribe', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        if (!data.text) {
-          status.textContent = "I didn't catch that. Try again, or type instead.";
-        } else {
-          box.value = box.value.trim() ? `${box.value.trim()} ${data.text}` : data.text;
-          status.textContent = 'Got it. Check the text, then press Continue.';
-        }
-      } catch (err) {
-        status.textContent = `Couldn't understand the recording (${err.message}). You can type instead.`;
-      } finally {
-        btn.disabled = false;
-      }
-    };
-    recorder.start();
-    btn.textContent = '⏹ Stop recording';
-    btn.classList.add('recording');
-    status.textContent = 'Recording… speak now, then press Stop.';
-  });
-}
-
 // Reads text aloud with the browser's built-in voice (Web Speech API). Silent if unsupported.
 function speak(text) {
   try {
@@ -768,7 +841,7 @@ function scamWarning(payment, review) {
 
   const purchase = payment.kind === 'purchase';
   const thing = purchase ? 'purchase' : 'transfer';
-  const spoken = `Stop. This looks like a scam. ${review.warning} If you still want to ${purchase ? 'pay' : 'send this money'}, please call SwampTag fraud support first, at ${FRAUD_LINE.spoken}.`;
+  const spoken = `Stop. This looks like a scam. ${review.warning} If you still want to ${purchase ? 'pay' : 'send this money'}, please call QuackTag fraud support first, at ${FRAUD_LINE.spoken}.`;
   const modal = openModal(`
     <div class="scam-warning">
       <div class="result-icon bad">!</div>
@@ -780,7 +853,7 @@ function scamWarning(payment, review) {
       <p class="modal-text">${escapeHtml(review.warning)}</p>
       <div class="call-box">
         <strong>Still want to ${purchase ? 'pay' : 'send'} ${money.format(payment.amount)}?</strong>
-        <span>Talk to SwampTag fraud support first. We'll talk it through with you and give you a code.</span>
+        <span>Talk to QuackTag fraud support first. We'll talk it through with you and give you a code.</span>
         <span class="call-number">${FRAUD_LINE.label}</span>
         <button type="button" class="btn btn-outline btn-sm" id="rep-call">📞 Talk to a representative</button>
         <span class="rep-status" id="rep-status" aria-live="polite"></span>
@@ -839,11 +912,24 @@ function requestFlow() {
       <button class="btn btn-primary btn-block field-gap" type="submit">Send request</button>
     </form>`);
   const getContact = wireContactPicker(modal);
-  modal.querySelector('#req-form').addEventListener('submit', (e) => {
+  modal.querySelector('#req-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const amount = readDollars(modal.querySelector('#req-amount'));
     if (!(amount > 0)) return toast('Enter an amount of at least $1.');
     const c = getContact();
+    if (state.autoPayRequests !== false) {  // demo setting: they pay instantly
+      closeModal();
+      try {
+        await Bank.requestPaid(c, amount, 'Request paid');
+        await refresh();
+        renderAll(true);
+        toast(`${c.name} paid your ${money.format(amount)} request.`);
+      } catch (err) {
+        console.warn(err);
+        toast("Couldn't complete the request. Is Nessie answering?");
+      }
+      return;
+    }
     Store.addLocalRow({ name: c.name, initials: c.initials, sub: 'Request sent', amount, status: 'pending' });
     renderAll(true);
     closeModal();
@@ -888,7 +974,7 @@ function payBillFlow(bill) {
 function registerFlow() {
   const modal = openModal(`
     <div class="approval">
-      ${modalHead('Link your SwampTag key')}
+      ${modalHead('Link your QuackTag key')}
       ${TAP_ICON}
       <div class="approval-prompt">Tap the key fob you want to link</div>
       <p class="approval-note">From now on, payments from card ...4821 will need this key when something looks risky.</p>
@@ -906,7 +992,7 @@ function registerFlow() {
       pending = null;
       link.send('OK');
       Store.set('keyUid', uid);
-      Store.addAlert('good', 'SwampTag key linked', `Key ${uid} now protects card ...4821.`);
+      Store.addAlert('good', 'QuackTag key linked', `Key ${uid} now protects card ...4821.`);
       renderAll();
       tapLimitFlow({ afterLink: true });
       syncKeyToProfile(uid);
@@ -940,13 +1026,13 @@ function tapLimitFlow({ afterLink = false } = {}) {
 async function unlinkKey() {
   const ok = await confirmModal('Unlink this key?', 'Payments from card ...4821 will no longer need a tap until you link a key again.', 'Unlink key', { danger: true });
   if (!ok) return;
-  Store.addAlert('info', 'SwampTag key unlinked', `Key ${state.keyUid} was removed.`);
+  Store.addAlert('info', 'QuackTag key unlinked', `Key ${state.keyUid} was removed.`);
   Store.set('keyUid', null);
   renderAll();
   syncKeyToProfile(null);
 }
 
-// Saves the linked key to the signed-in user's Auth0 profile (user_metadata.swamptag_key).
+// Saves the linked key to the signed-in user's Auth0 profile (user_metadata.quacktag_key).
 async function syncKeyToProfile(uid) {
   if (!Auth.enabled || Auth.usingDemo()) return;
   try {
@@ -983,8 +1069,14 @@ link.onStatus = (connected) => {
   renderKeyPanel();
 };
 
-$('#send-btn').addEventListener('click', sendFlow);
-$('#shield-send').addEventListener('click', sendFlow);
+$('#send-btn').addEventListener('click', () => sendFlow());
+$('#quick-list').addEventListener('click', (e) => {
+  const b = e.target.closest('.quick-person');
+  if (!b) return;
+  if (b.dataset.req) requestFlow();
+  else sendFlow(Number(b.dataset.i));
+});
+$('#shield-send').addEventListener('click', () => sendFlow());
 $('#request-btn').addEventListener('click', requestFlow);
 $('#pay-btn').addEventListener('click', payFlow);
 $('#shield-pay').addEventListener('click', payFlow);
@@ -996,6 +1088,10 @@ $('#connect-btn').addEventListener('click', phoneSetupFlow);
 $('#demo-toggle').addEventListener('change', (e) => {
   Store.set('demoMode', e.target.checked);
   renderKeyPanel();
+});
+$('#autopay-toggle').addEventListener('change', (e) => {
+  Store.set('autoPayRequests', e.target.checked);
+  toast(e.target.checked ? 'Requests now pay out instantly (demo).' : 'Requests stay pending.');
 });
 $('#scam-toggle').addEventListener('change', (e) => {
   Store.set('scamCheck', e.target.checked);
