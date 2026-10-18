@@ -240,9 +240,13 @@ void setup() {
   EEPROM.begin(256);
   SPI.begin();
   if (startReader(KEY_READY)) led(0, 0, 8);
+  rp2040.wdt_begin(8000);  // if the loop ever hangs (e.g. a stuck SPI transfer), reboot within 8 s
 }
 
+const unsigned long REINIT_MS = 60000;  // re-initialise an idle RC522 every minute (it can latch up after hours)
+
 void loop() {
+  rp2040.wdt_reset();
   if (!readerReady) {
     if (!readerUp(KEY_READY)) return;
     led(0, 0, 8);
@@ -250,6 +254,19 @@ void loop() {
   static unsigned long lastPoll = 0;
   if (millis() - lastPoll < POLL_MS) return;
   lastPoll = millis();
+
+  static unsigned long lastReinit = millis();
+  if (!currentUid.length() && millis() - lastReinit >= REINIT_MS) {
+    lastReinit = millis();
+    rfid.PCD_Init();
+    const byte version = rfid.PCD_ReadRegister(MFRC522::VersionReg);
+    if (version == 0x00 || version == 0xFF) {
+      readerReady = false;  // readerUp() retries and logs the wiring checklist
+      Serial.println("ERROR:READER stopped answering; retrying");
+      return;
+    }
+    rfid.PCD_AntennaOff();
+  }
 
   if (!pollTag()) {
     if (currentUid.length() && ++misses >= MISSES_TO_LEAVE) {
