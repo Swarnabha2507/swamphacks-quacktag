@@ -456,6 +456,9 @@ class Handler(SimpleHTTPRequestHandler):
         self.handle_api("DELETE")
 
 
+HOTSPOT_IP = "192.168.137.1"   # Windows Mobile Hotspot's fixed address
+
+
 def main():
     ports = [a for a in sys.argv[1:] if a.isdigit()]
     port = int(ports[0]) if ports else 8000
@@ -475,6 +478,16 @@ def main():
           else "off (run with .venv\\Scripts\\python.exe to turn it on)")
     if transcriber.available():
         threading.Thread(target=transcriber.warm_up, daemon=True).start()
+    # --hotspot: also listen on the laptop's Windows Mobile Hotspot address, so a phone on that
+    # hotspot reaches the site with no cable (campus Wi-Fi can't reach it). On the phone, add
+    # http://192.168.137.1:<port> to chrome://flags "Insecure origins treated as secure" for Web NFC.
+    if "--hotspot" in sys.argv:
+        try:
+            lan = ThreadingHTTPServer((HOTSPOT_IP, port), Handler)
+            threading.Thread(target=lan.serve_forever, daemon=True).start()
+            print(f"Hotspot: http://{HOTSPOT_IP}:{port}/pump.html  (phone on the laptop's hotspot)")
+        except OSError as err:
+            print(f"Hotspot: not available ({err}). Turn on Mobile hotspot first.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
